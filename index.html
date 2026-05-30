@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Lycee — New transaction</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --bg: #0f0f10;
+      --text: #ffffff;
+      --hint: #a1a1aa;
+      --button: #2ea6ff;
+      --button_text: #ffffff;
+      --secondary_bg: #1c1c1e;
+      --field_bg: rgba(255,255,255,.06);
+      --field_border: rgba(255,255,255,.14);
+      --field_focus: rgba(46,166,255,.28);
+      --card_bg: rgba(255,255,255,.05);
+      --border: rgba(255,255,255,.10);
+      --radius: 14px;
+      /* Lycee signature gradient (fixed accent, independent of theme) */
+      --grad: linear-gradient(135deg,#4ade80 0%,#2dd4bf 50%,#a855f7 100%);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ margin:0; }
+
+    body{
+      font-family:'Inter',system-ui,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      padding:14px 16px 32px;
+      min-height:100vh;
+      -webkit-font-smoothing:antialiased;
+      text-rendering:optimizeLegibility;
+    }
+
+    /* Subtle Lycee glow accents over the Telegram background */
+    body::before{
+      content:"";
+      position:fixed; inset:0; z-index:-1; pointer-events:none;
+      background:
+        radial-gradient(55% 40% at 0% 0%, rgba(74,222,128,.12), transparent 60%),
+        radial-gradient(50% 40% at 100% 100%, rgba(168,85,247,.13), transparent 60%);
+    }
+
+    h1,h2,h3{ font-family:'Manrope',system-ui,Arial,sans-serif; letter-spacing:-.01em; margin:0; }
+
+    .gradient{
+      background:var(--grad);
+      -webkit-background-clip:text; background-clip:text;
+      -webkit-text-fill-color:transparent; color:transparent;
+    }
+
+    /* ---------- Top bar ---------- */
+    .topbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; }
+    .brand{
+      font-family:'Manrope'; font-weight:800; font-size:22px; line-height:1;
+      background:var(--grad); -webkit-background-clip:text; background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+    .actions{ display:flex; gap:8px; }
+    .icon-btn{
+      display:inline-flex; align-items:center; gap:6px;
+      width:auto; margin:0; padding:8px 12px;
+      background:var(--card_bg); border:1px solid var(--border);
+      color:var(--text); border-radius:999px; font-weight:700; font-size:13px;
+      cursor:pointer; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+      transition:border-color .2s, background .2s;
+    }
+    .icon-btn:active{ transform:translateY(1px); }
+    .icon-btn svg{ width:18px; height:18px; display:block; }
+    .icon-btn .lbl{ transform:translateY(1px); }
+
+    /* ---------- Tabs (link to the two pages) ---------- */
+    .tabs{
+      display:flex; gap:6px; padding:5px; margin-bottom:18px;
+      background:var(--card_bg); border:1px solid var(--border);
+      border-radius:999px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    }
+    .tab{
+      flex:1; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      width:auto; margin:0; padding:11px 12px; border-radius:999px;
+      text-decoration:none; color:var(--hint); font-weight:700; font-size:14px;
+      transition:color .2s, background .2s;
+    }
+    .tab.active{ color:#fff; background:var(--grad); }
+    .badge{
+      display:inline-flex; align-items:center; justify-content:center;
+      min-width:20px; height:20px; padding:0 6px; border-radius:999px;
+      font-size:12px; font-weight:800; background:var(--border); color:var(--text);
+    }
+    .tab.active .badge{ background:rgba(255,255,255,.28); color:#fff; }
+
+    /* ---------- Card ---------- */
+    .card{
+      background:var(--card_bg); border:1px solid var(--border);
+      border-radius:20px; padding:18px;
+      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    }
+    .title{ font-size:24px; font-weight:800; }
+    .subtitle{ color:var(--hint); margin:6px 0 8px; font-size:14px; }
+
+    label{
+      display:block; margin:14px 0 6px;
+      font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.14em;
+      color:var(--hint);
+    }
+
+    input,select,textarea{
+      width:100%; padding:12px; font-size:16px; font-family:inherit;
+      color:var(--text); background:var(--field_bg);
+      border:1px solid var(--field_border); border-radius:var(--radius);
+      outline:none; box-sizing:border-box;
+    }
+    textarea{ resize:vertical; min-height:84px; }
+    input::placeholder, textarea::placeholder{ color:var(--hint); }
+    input:focus, select:focus, textarea:focus{
+      border-color:#2dd4bf;
+      box-shadow:0 0 0 4px var(--field_focus);
+    }
+    select{ appearance:none; -webkit-appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4 6 8 10 12 6'/%3E%3C/svg%3E");
+      background-repeat:no-repeat; background-position:right 12px center; padding-right:36px;
+    }
+
+    .row2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    /* Date field with mobile placeholder overlay */
+    input[type="date"]{
+      height:46px; line-height:46px; appearance:none; -webkit-appearance:none;
+    }
+    input[type="date"]:not(:valid){ color:var(--hint); }
+    input[type="date"]:valid{ color:var(--text); }
+    input[type="date"]::-webkit-calendar-picker-indicator{ opacity:.7; cursor:pointer; }
+    [data-scheme="dark"] input[type="date"]::-webkit-calendar-picker-indicator{ filter:invert(1); }
+    input[type="date"]::-webkit-inner-spin-button,
+    input[type="date"]::-webkit-clear-button{ display:none; }
+    .date-field{ position:relative; }
+    .date-placeholder{ display:none; }
+    @media (hover:none) and (pointer:coarse){
+      .date-placeholder{
+        display:flex; align-items:center; gap:6px;
+        position:absolute; left:13px; top:50%; transform:translateY(-50%);
+        pointer-events:none; color:var(--hint); font-size:15px;
+      }
+      .date-field:focus-within .date-placeholder,
+      .date-field.has-value .date-placeholder{ display:none; }
+    }
+
+    /* ---------- Buttons ---------- */
+    .btn-gradient{
+      width:100%; margin-top:18px; padding:14px;
+      border:none; border-radius:999px;
+      background:var(--grad); color:#fff;
+      font-family:inherit; font-weight:800; font-size:16px; cursor:pointer;
+      box-shadow:0 8px 24px rgba(45,212,191,.18);
+    }
+    .btn-ghost{
+      width:100%; margin-top:10px; padding:13px;
+      background:transparent; border:1px solid var(--border); color:var(--text);
+      border-radius:999px; font-family:inherit; font-weight:700; font-size:15px; cursor:pointer;
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .btn-gradient:active, .btn-ghost:active{ transform:translateY(1px); }
+    .btn-ghost svg{ width:18px; height:18px; }
+
+    .hint{ color:var(--hint); font-size:12px; margin-top:14px; text-align:center; }
+
+    /* ---------- Toast ---------- */
+    .toast{
+      position:fixed; left:50%; bottom:24px;
+      transform:translateX(-50%) translateY(18px); opacity:0; pointer-events:none;
+      background:var(--grad); color:#fff; padding:12px 20px; border-radius:999px;
+      font-weight:700; font-size:14px; box-shadow:0 10px 30px rgba(0,0,0,.35);
+      transition:opacity .25s, transform .25s; z-index:50; max-width:90vw; text-align:center;
+    }
+    .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body data-scheme="dark">
+  <header class="topbar">
+    <div class="brand">Lycee</div>
+    <div class="actions">
+      <button class="icon-btn" id="langBtn" type="button" title="Language">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg>
+        <span class="lbl" id="langLabel">EN</span>
+      </button>
+      <button class="icon-btn" id="fsBtn" type="button" title="Fullscreen">
+        <svg id="fsExpand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+        <svg id="fsCompress" style="display:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <a class="tab active" href="./index.html" data-i18n="tab.new">New</a>
+    <a class="tab" href="./table.html">
+      <span data-i18n="tab.list">Transactions</span>
+      <span class="badge" id="countBadge">0</span>
+    </a>
+  </nav>
+
+  <main>
+    <section class="card">
+      <h1 class="title gradient" data-i18n="form.title">New transaction</h1>
+      <p class="subtitle" data-i18n="form.subtitle">Add an entry to your ledger.</p>
+
+      <label data-i18n="field.date">Date</label>
+      <div class="date-field" id="dateWrap">
+        <input id="date" type="date" required />
+        <span class="date-placeholder" data-i18n="ph.date">📅 Select date</span>
+      </div>
+
+      <div class="row2">
+        <div>
+          <label data-i18n="field.total">Total</label>
+          <input id="total" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" autocomplete="off" />
+        </div>
+        <div>
+          <label data-i18n="field.currency">Currency</label>
+          <select id="currency">
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="UAH">UAH</option>
+            <option value="GBP">GBP</option>
+            <option value="PLN">PLN</option>
+          </select>
+        </div>
+      </div>
+
+      <label data-i18n="field.comment">Comment</label>
+      <textarea id="comment" rows="3" data-i18n-ph="ph.comment" placeholder="What was it for?"></textarea>
+
+      <button class="btn-gradient" id="createBtn" type="button" data-i18n="btn.create">Create transaction</button>
+      <button class="btn-ghost" id="randomBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/></svg>
+        <span data-i18n="btn.random">Generate random data</span>
+      </button>
+
+      <p class="hint" id="themeHint"></p>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    /* ---------------- Telegram bootstrap (with standalone fallback) ---------------- */
+    const tg = (window.Telegram && window.Telegram.WebApp) || {
+      ready(){}, expand(){}, onEvent(){}, themeParams:{}, colorScheme:'dark',
+      showAlert(m){ alert(m); }, isFullscreen:false,
+      HapticFeedback:{ notificationOccurred(){}, impactOccurred(){} }
+    };
+    tg.ready(); tg.expand();
+
+    /* ---------------- i18n ---------------- */
+    const dict = {
+      en:{
+        'tab.new':'New', 'tab.list':'Transactions',
+        'form.title':'New transaction', 'form.subtitle':'Add an entry to your ledger.',
+        'field.date':'Date', 'field.total':'Total', 'field.currency':'Currency', 'field.comment':'Comment',
+        'ph.date':'📅 Select date', 'ph.comment':'What was it for?',
+        'btn.create':'Create transaction', 'btn.random':'Generate random data',
+        'toast.created':'Transaction added', 'toast.generated':'5 transactions generated',
+        'alert.fill':'Please enter a date and a valid total.',
+        'theme':'Theme'
+      },
+      uk:{
+        'tab.new':'Нова', 'tab.list':'Транзакції',
+        'form.title':'Нова транзакція', 'form.subtitle':'Додайте запис до вашого журналу.',
+        'field.date':'Дата', 'field.total':'Сума', 'field.currency':'Валюта', 'field.comment':'Коментар',
+        'ph.date':'📅 Оберіть дату', 'ph.comment':'За що?',
+        'btn.create':'Створити транзакцію', 'btn.random':'Згенерувати дані',
+        'toast.created':'Транзакцію додано', 'toast.generated':'Згенеровано 5 транзакцій',
+        'alert.fill':'Вкажіть дату та коректну суму.',
+        'theme':'Тема'
+      }
+    };
+    let lang = localStorage.getItem('lycee_lang')
+      || (((tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || '').startsWith('uk') ? 'uk' : 'en');
+    const t = (k) => (dict[lang] && dict[lang][k]) || (dict.en[k] || k);
+
+    function applyI18n(){
+      document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+      document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+      document.documentElement.lang = lang;
+      document.getElementById('langLabel').textContent = (lang === 'uk') ? 'UA' : 'EN';
+      updateThemeHint();
+    }
+
+    document.getElementById('langBtn').onclick = () => {
+      lang = (lang === 'uk') ? 'en' : 'uk';
+      localStorage.setItem('lycee_lang', lang);
+      applyI18n();
+    };
+
+    /* ---------------- Theme (derive from Telegram, keep Lycee gradient) ---------------- */
+    function applyTheme(){
+      const p = tg.themeParams || {};
+      const scheme = tg.colorScheme === 'light' ? 'light' : 'dark';
+      document.body.setAttribute('data-scheme', scheme);
+
+      const bg          = p.bg_color          || (scheme === 'dark' ? '#0f0f10' : '#ffffff');
+      const text        = p.text_color        || (scheme === 'dark' ? '#ffffff' : '#111111');
+      const hint        = p.hint_color        || (scheme === 'dark' ? '#a1a1aa' : '#6b7280');
+      const button      = p.button_color      || '#2ea6ff';
+      const buttonText  = p.button_text_color || '#ffffff';
+      const secondaryBg = p.secondary_bg_color|| (scheme === 'dark' ? '#1c1c1e' : '#f3f4f6');
+
+      const card   = scheme === 'dark' ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.65)';
+      const border = scheme === 'dark' ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.10)';
+      const fieldBg= scheme === 'dark' ? 'rgba(255,255,255,.06)' : '#ffffff';
+      const fBorder= scheme === 'dark' ? 'rgba(255,255,255,.14)' : 'rgba(0,0,0,.15)';
+      const focus  = scheme === 'dark' ? 'rgba(46,212,191,.28)' : 'rgba(46,212,191,.35)';
+
+      const s = document.documentElement.style;
+      s.setProperty('--bg', bg);
+      s.setProperty('--text', text);
+      s.setProperty('--hint', hint);
+      s.setProperty('--button', button);
+      s.setProperty('--button_text', buttonText);
+      s.setProperty('--secondary_bg', secondaryBg);
+      s.setProperty('--card_bg', card);
+      s.setProperty('--border', border);
+      s.setProperty('--field_bg', fieldBg);
+      s.setProperty('--field_border', fBorder);
+      s.setProperty('--field_focus', focus);
+
+      if (typeof tg.setBackgroundColor === 'function') { try { tg.setBackgroundColor(bg); } catch(e){} }
+      if (typeof tg.setHeaderColor === 'function')     { try { tg.setHeaderColor(bg); } catch(e){} }
+      updateThemeHint();
+    }
+    function updateThemeHint(){
+      const el = document.getElementById('themeHint');
+      if (el) el.textContent = t('theme') + ': ' + (tg.colorScheme || 'dark');
+    }
+    applyTheme();
+    if (typeof tg.onEvent === 'function') tg.onEvent('themeChanged', applyTheme);
+
+    /* ---------------- Fullscreen toggle ---------------- */
+    const fsBtn = document.getElementById('fsBtn');
+    const fsExpand = document.getElementById('fsExpand');
+    const fsCompress = document.getElementById('fsCompress');
+    function updateFsIcon(){
+      const on = !!tg.isFullscreen;
+      fsExpand.style.display = on ? 'none' : 'block';
+      fsCompress.style.display = on ? 'block' : 'none';
+    }
+    fsBtn.onclick = () => {
+      if (typeof tg.requestFullscreen !== 'function'){
+        if (typeof tg.showAlert === 'function') tg.showAlert('Fullscreen is not supported on this Telegram version.');
+        return;
+      }
+      if (tg.isFullscreen) tg.exitFullscreen(); else tg.requestFullscreen();
+    };
+    if (typeof tg.onEvent === 'function') tg.onEvent('fullscreenChanged', updateFsIcon);
+    updateFsIcon();
+
+    /* ---------------- Storage ---------------- */
+    const KEY = 'lycee_tx';
+    const loadTx = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } };
+    const saveTx = (a) => localStorage.setItem(KEY, JSON.stringify(a));
+    const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(16).slice(2));
+    const updateBadge = () => { document.getElementById('countBadge').textContent = loadTx().length; };
+
+    /* ---------------- Random data ---------------- */
+    const CURRENCIES = ['USD','EUR','UAH','GBP','PLN'];
+    const COMMENTS = ['Client payment','Office supplies','Subscription','Consulting','Hardware',
+                      'Marketing','Travel','Refund','Software license','Logistics'];
+    const ri = (a,b) => Math.floor(Math.random() * (b - a + 1)) + a;
+    function randomTx(){
+      const d = new Date(); d.setDate(d.getDate() - ri(0,60));
+      return {
+        id: uid(),
+        date: d.toISOString().slice(0,10),
+        total: ri(50, 9999) + Math.round(Math.random()*100)/100,
+        currency: CURRENCIES[ri(0, CURRENCIES.length - 1)],
+        comment: COMMENTS[ri(0, COMMENTS.length - 1)]
+      };
+    }
+
+    /* ---------------- Helpers ---------------- */
+    function haptic(type){ try { tg.HapticFeedback && tg.HapticFeedback.notificationOccurred(type); } catch(e){} }
+    let toastTimer;
+    function showToast(msg){
+      const el = document.getElementById('toast');
+      el.textContent = msg; el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+    }
+
+    /* ---------------- Form actions ---------------- */
+    const dateInput = document.getElementById('date');
+    const dateWrap  = document.getElementById('dateWrap');
+    const syncDate = () => dateWrap.classList.toggle('has-value', !!dateInput.value);
+    dateInput.addEventListener('input', syncDate);
+    dateInput.addEventListener('change', syncDate);
+
+    document.getElementById('createBtn').onclick = () => {
+      const date = dateInput.value;
+      const total = parseFloat(document.getElementById('total').value);
+      const currency = document.getElementById('currency').value;
+      const comment = document.getElementById('comment').value.trim();
+
+      if (!date || isNaN(total) || total <= 0){
+        if (typeof tg.showAlert === 'function') tg.showAlert(t('alert.fill')); else alert(t('alert.fill'));
+        return;
+      }
+      const txs = loadTx();
+      txs.unshift({ id: uid(), date, total, currency, comment });
+      saveTx(txs);
+      haptic('success');
+      document.getElementById('total').value = '';
+      document.getElementById('comment').value = '';
+      updateBadge();
+      showToast(t('toast.created'));
+    };
+
+    document.getElementById('randomBtn').onclick = () => {
+      const txs = loadTx();
+      for (let i = 0; i < 5; i++) txs.unshift(randomTx());
+      saveTx(txs);
+      haptic('success');
+      updateBadge();
+      showToast(t('toast.generated'));
+    };
+
+    /* ---------------- Init ---------------- */
+    applyI18n();
+    updateBadge();
+    syncDate();
+  </script>
+</body>
+</html>
