@@ -52,12 +52,15 @@
       -webkit-text-fill-color:transparent; color:transparent;
     }
 
-    .topbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; }
+    /* 3-zone bar: brand left, actions CENTER, right corner left free for
+       Telegram's native close/menu buttons (which otherwise cover ours). */
+    .topbar{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px; margin-bottom:14px; }
     .brand{
+      justify-self:start;
       font-family:'Manrope'; font-weight:800; font-size:22px; line-height:1;
       background:var(--grad); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
     }
-    .actions{ display:flex; gap:8px; }
+    .actions{ justify-self:center; display:flex; gap:8px; }
     .icon-btn{
       display:inline-flex; align-items:center; gap:6px;
       width:auto; margin:0; padding:8px 12px;
