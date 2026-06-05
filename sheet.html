@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Lycee — Google Sheet</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --bg: #0f0f10;
+      --text: #ffffff;
+      --hint: #a1a1aa;
+      --button: #2ea6ff;
+      --button_text: #ffffff;
+      --secondary_bg: #1c1c1e;
+      --field_bg: rgba(255,255,255,.06);
+      --field_border: rgba(255,255,255,.14);
+      --field_focus: rgba(46,166,255,.28);
+      --card_bg: rgba(255,255,255,.05);
+      --border: rgba(255,255,255,.10);
+      --radius: 14px;
+      --grad: linear-gradient(135deg,#4ade80 0%,#2dd4bf 50%,#a855f7 100%);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ margin:0; }
+
+    /* Sheet page fills the viewport so the embed can take all available space */
+    body{
+      font-family:'Inter',system-ui,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      padding:14px 16px 16px;
+      height:100vh; height:100dvh;
+      display:flex; flex-direction:column;
+      -webkit-font-smoothing:antialiased;
+      text-rendering:optimizeLegibility;
+    }
+    body::before{
+      content:"";
+      position:fixed; inset:0; z-index:-1; pointer-events:none;
+      background:
+        radial-gradient(55% 40% at 0% 0%, rgba(74,222,128,.12), transparent 60%),
+        radial-gradient(50% 40% at 100% 100%, rgba(168,85,247,.13), transparent 60%);
+    }
+
+    h1,h2,h3{ font-family:'Manrope',system-ui,Arial,sans-serif; letter-spacing:-.01em; margin:0; }
+    .gradient{
+      background:var(--grad);
+      -webkit-background-clip:text; background-clip:text;
+      -webkit-text-fill-color:transparent; color:transparent;
+    }
+
+    /* 3-zone bar: brand left, actions CENTER, right corner left free for
+       Telegram's native close/menu buttons (which otherwise cover ours). */
+    .topbar{ flex:none; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px; margin-bottom:14px; }
+    .brand{
+      justify-self:start;
+      font-family:'Manrope'; font-weight:800; font-size:22px; line-height:1;
+      background:var(--grad); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    }
+    .actions{ justify-self:center; display:flex; gap:8px; }
+    .icon-btn{
+      display:inline-flex; align-items:center; gap:6px;
+      width:auto; margin:0; padding:8px 12px;
+      background:var(--card_bg); border:1px solid var(--border);
+      color:var(--text); border-radius:999px; font-weight:700; font-size:13px;
+      cursor:pointer; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+      transition:border-color .2s, background .2s;
+    }
+    .icon-btn:active{ transform:translateY(1px); }
+    .icon-btn svg{ width:18px; height:18px; display:block; }
+    .icon-btn .lbl{ transform:translateY(1px); }
+
+    .tabs{
+      flex:none;
+      display:flex; gap:6px; padding:5px; margin-bottom:18px;
+      background:var(--card_bg); border:1px solid var(--border);
+      border-radius:999px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    }
+    .tab{
+      flex:1; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      width:auto; margin:0; padding:11px 10px; border-radius:999px; white-space:nowrap;
+      text-decoration:none; color:var(--hint); font-weight:700; font-size:13px;
+      transition:color .2s, background .2s;
+    }
+    .tab.active{ color:#fff; background:var(--grad); }
+    .badge{
+      display:inline-flex; align-items:center; justify-content:center;
+      min-width:20px; height:20px; padding:0 6px; border-radius:999px;
+      font-size:12px; font-weight:800; background:var(--border); color:var(--text);
+    }
+    .tab.active .badge{ background:rgba(255,255,255,.28); color:#fff; }
+
+    /* ---------- Sheet embed (fills remaining space) ---------- */
+    main{ flex:1 1 auto; min-height:0; display:flex; }
+    .sheet-card{
+      flex:1 1 auto; min-height:0; display:flex;
+      background:var(--card_bg); border:1px solid var(--border);
+      border-radius:20px; padding:6px; overflow:hidden;
+      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    }
+    .sheet-frame{
+      flex:1 1 auto; width:100%; min-height:0;
+      border:none; border-radius:14px; background:#fff;
+    }
+  </style>
+</head>
+<body data-scheme="dark">
+  <header class="topbar">
+    <div class="brand">Lycee</div>
+    <div class="actions">
+      <button class="icon-btn" id="langBtn" type="button" title="Language">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg>
+        <span class="lbl" id="langLabel">EN</span>
+      </button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <a class="tab" href="./index.html" data-i18n="tab.new">New</a>
+    <a class="tab" href="./table.html">
+      <span data-i18n="tab.list">Transactions</span>
+      <span class="badge" id="countBadge">0</span>
+    </a>
+    <a class="tab active" href="./sheet.html" data-i18n="tab.sheet">Google Sheet</a>
+  </nav>
+
+  <main>
+    <section class="sheet-card">
+      <iframe
+        class="sheet-frame"
+        src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSimmJb2DDSYCNejUNi1xzbJj_F8bz72Mm5-EPnuY70WGwb438MXG-Xe3ahjtshwzS5eF0iJo2Bwj2y/pubhtml?widget=true&amp;headers=false"
+        title="Lycee Google Sheet"
+        loading="lazy"
+        allowfullscreen></iframe>
+    </section>
+  </main>
+
+  <script>
+    /* ---------------- Telegram bootstrap (with standalone fallback) ---------------- */
+    const tg = (window.Telegram && window.Telegram.WebApp) || {
+      ready(){}, expand(){}, onEvent(){}, themeParams:{}, colorScheme:'dark',
+      showAlert(m){ alert(m); }, isFullscreen:false,
+      HapticFeedback:{ notificationOccurred(){}, impactOccurred(){} }
+    };
+    tg.ready(); tg.expand();
+
+    /* ---------------- i18n ---------------- */
+    const dict = {
+      en:{ 'tab.new':'New', 'tab.list':'Transactions', 'tab.sheet':'Google Sheet', 'theme':'Theme' },
+      uk:{ 'tab.new':'Нова', 'tab.list':'Транзакції', 'tab.sheet':'Google Sheet', 'theme':'Тема' }
+    };
+    let lang = localStorage.getItem('lycee_lang')
+      || (((tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || '').startsWith('uk') ? 'uk' : 'en');
+    const t = (k) => (dict[lang] && dict[lang][k]) || (dict.en[k] || k);
+
+    function applyI18n(){
+      document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+      document.documentElement.lang = lang;
+      document.getElementById('langLabel').textContent = (lang === 'uk') ? 'UA' : 'EN';
+    }
+
+    document.getElementById('langBtn').onclick = () => {
+      lang = (lang === 'uk') ? 'en' : 'uk';
+      localStorage.setItem('lycee_lang', lang);
+      applyI18n();
+    };
+
+    /* ---------------- Theme (derive from Telegram, keep Lycee gradient) ---------------- */
+    function applyTheme(){
+      const p = tg.themeParams || {};
+      const scheme = tg.colorScheme === 'light' ? 'light' : 'dark';
+      document.body.setAttribute('data-scheme', scheme);
+
+      const bg          = p.bg_color          || (scheme === 'dark' ? '#0f0f10' : '#ffffff');
+      const text        = p.text_color        || (scheme === 'dark' ? '#ffffff' : '#111111');
+      const hint        = p.hint_color        || (scheme === 'dark' ? '#a1a1aa' : '#6b7280');
+      const button      = p.button_color      || '#2ea6ff';
+      const buttonText  = p.button_text_color || '#ffffff';
+      const secondaryBg = p.secondary_bg_color|| (scheme === 'dark' ? '#1c1c1e' : '#f3f4f6');
+
+      const card   = scheme === 'dark' ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.65)';
+      const border = scheme === 'dark' ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.10)';
+      const fieldBg= scheme === 'dark' ? 'rgba(255,255,255,.06)' : '#ffffff';
+      const fBorder= scheme === 'dark' ? 'rgba(255,255,255,.14)' : 'rgba(0,0,0,.15)';
+      const focus  = scheme === 'dark' ? 'rgba(46,212,191,.28)' : 'rgba(46,212,191,.35)';
+
+      const s = document.documentElement.style;
+      s.setProperty('--bg', bg);
+      s.setProperty('--text', text);
+      s.setProperty('--hint', hint);
+      s.setProperty('--button', button);
+      s.setProperty('--button_text', buttonText);
+      s.setProperty('--secondary_bg', secondaryBg);
+      s.setProperty('--card_bg', card);
+      s.setProperty('--border', border);
+      s.setProperty('--field_bg', fieldBg);
+      s.setProperty('--field_border', fBorder);
+      s.setProperty('--field_focus', focus);
+
+      if (typeof tg.setBackgroundColor === 'function') { try { tg.setBackgroundColor(bg); } catch(e){} }
+      if (typeof tg.setHeaderColor === 'function')     { try { tg.setHeaderColor(bg); } catch(e){} }
+    }
+    applyTheme();
+    if (typeof tg.onEvent === 'function') tg.onEvent('themeChanged', applyTheme);
+
+/* ---------------- Transactions badge ---------------- */
+    const KEY = 'lycee_tx';
+    const loadTx = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } };
+    document.getElementById('countBadge').textContent = loadTx().length;
+
+    /* ---------------- Init ---------------- */
+    applyI18n();
+  </script>
+</body>
+</html>
