@@ -74,6 +74,8 @@
     .icon-btn:active{ transform:translateY(1px); }
     .icon-btn svg{ width:18px; height:18px; display:block; }
     .icon-btn .lbl{ transform:translateY(1px); }
+    /* Fullscreen toggle is only useful on desktop — mobile Telegram opens fullscreen by default */
+    @media (hover:none) and (pointer:coarse){ .desktop-only{ display:none !important; } }
 
     .tabs{
       flex:none;
@@ -116,6 +118,10 @@
       <button class="icon-btn" id="langBtn" type="button" title="Language">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg>
         <span class="lbl" id="langLabel">EN</span>
+      </button>
+      <button class="icon-btn desktop-only" id="fsBtn" type="button" title="Fullscreen">
+        <svg id="fsExpand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+        <svg id="fsCompress" style="display:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
       </button>
     </div>
   </header>
@@ -208,7 +214,26 @@
     applyTheme();
     if (typeof tg.onEvent === 'function') tg.onEvent('themeChanged', applyTheme);
 
-/* ---------------- Transactions badge ---------------- */
+    /* ---------------- Fullscreen toggle (desktop only — hidden on mobile via CSS) ---------------- */
+    const fsBtn = document.getElementById('fsBtn');
+    const fsExpand = document.getElementById('fsExpand');
+    const fsCompress = document.getElementById('fsCompress');
+    function updateFsIcon(){
+      const on = !!tg.isFullscreen;
+      fsExpand.style.display = on ? 'none' : 'block';
+      fsCompress.style.display = on ? 'block' : 'none';
+    }
+    fsBtn.onclick = () => {
+      if (typeof tg.requestFullscreen !== 'function'){
+        if (typeof tg.showAlert === 'function') tg.showAlert('Fullscreen is not supported on this Telegram version.');
+        return;
+      }
+      if (tg.isFullscreen) tg.exitFullscreen(); else tg.requestFullscreen();
+    };
+    if (typeof tg.onEvent === 'function') tg.onEvent('fullscreenChanged', updateFsIcon);
+    updateFsIcon();
+
+    /* ---------------- Transactions badge ---------------- */
     const KEY = 'lycee_tx';
     const loadTx = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } };
     document.getElementById('countBadge').textContent = loadTx().length;
