@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <!-- Sheet page allows native pinch-zoom (in/out) so the embedded sheet is zoomable on phones -->
-  <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=0.25,maximum-scale=5,user-scalable=yes" />
+  <!-- No native page-zoom: keeps the header/tabs fixed & reachable. Sheet zooms via the in-app +/- buttons. -->
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee — Google Sheet</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -181,8 +181,7 @@
             class="sheet-frame"
             src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSimmJb2DDSYCNejUNi1xzbJj_F8bz72Mm5-EPnuY70WGwb438MXG-Xe3ahjtshwzS5eF0iJo2Bwj2y/pubhtml?widget=true&amp;headers=false"
             title="Lycee Google Sheet"
-            loading="lazy"
-            allowfullscreen></iframe>
+            loading="lazy"></iframe>
         </div>
       </div>
 
