@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <!-- No native page-zoom: keeps the header/tabs fixed & reachable. Sheet zooms via the in-app +/- buttons. -->
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee — Google Sheet</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -98,54 +97,17 @@
     }
     .tab.active .badge{ background:rgba(255,255,255,.28); color:#fff; }
 
-    /* ---------- Sheet embed (fills remaining space, zoomable) ---------- */
+    /* ---------- Sheet embed (fills remaining space) ---------- */
     main{ flex:1 1 auto; min-height:0; display:flex; }
     .sheet-card{
-      position:relative;
       flex:1 1 auto; min-height:0; display:flex;
       background:var(--card_bg); border:1px solid var(--border);
       border-radius:20px; padding:6px; overflow:hidden;
       backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
     }
-    /* Freely pannable viewport — one-finger scroll works in any mobile WebView */
-    .sheet-scroll{
-      flex:1 1 auto; min-height:0; width:100%;
-      overflow:auto; -webkit-overflow-scrolling:touch;
-      border-radius:14px; background:#fff;
-    }
-    /* Sizer tracks the SCALED sheet so the scroll/pan area stays correct.
-       If transform happens to be ignored, the oversized iframe still overflows
-       here and remains pannable — so the sheet is usable either way. */
-    .sheet-sizer{
-      width:calc(var(--base-w,1200px) * var(--zoom,1));
-      height:calc(var(--base-h,2000px) * var(--zoom,1));
-    }
-    /* Sheet renders at a fixed desktop size (all charts laid out), then scaled */
     .sheet-frame{
-      display:block; border:none; background:#fff;
-      width:var(--base-w,1200px); height:var(--base-h,2000px);
-      transform:scale(var(--zoom,1)); transform-origin:0 0;
-    }
-
-    /* Floating zoom controls — kept off the header so the nav stays identical across pages */
-    .zoom-ctrl{
-      position:absolute; right:14px; bottom:14px; z-index:5;
-      display:inline-flex; align-items:center; gap:2px;
-      padding:4px; border-radius:999px;
-      background:var(--card_bg); border:1px solid var(--border);
-      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-      box-shadow:0 6px 20px rgba(0,0,0,.28);
-    }
-    .zoom-btn{
-      width:36px; height:36px; margin:0; padding:0; border:none; border-radius:999px;
-      background:transparent; color:var(--text); font-family:inherit; font-size:22px; font-weight:700; line-height:1;
-      cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
-    }
-    .zoom-btn:active{ transform:translateY(1px); }
-    .zoom-val{
-      min-width:54px; height:36px; margin:0; padding:0 8px; border:none; border-radius:999px;
-      background:transparent; color:var(--text); font-family:inherit; font-size:13px; font-weight:700;
-      cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+      flex:1 1 auto; width:100%; min-height:0;
+      border:none; border-radius:14px; background:#fff;
     }
   </style>
 </head>
@@ -175,22 +137,11 @@
 
   <main>
     <section class="sheet-card">
-      <div class="sheet-scroll">
-        <div class="sheet-sizer">
-          <iframe
-            class="sheet-frame"
-            src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSimmJb2DDSYCNejUNi1xzbJj_F8bz72Mm5-EPnuY70WGwb438MXG-Xe3ahjtshwzS5eF0iJo2Bwj2y/pubhtml?widget=true&amp;headers=false"
-            title="Lycee Google Sheet"
-            loading="lazy"></iframe>
-        </div>
-      </div>
-
-      <!-- Zoom buttons work on every device; tap the % to fit the whole sheet to width. Drag to pan. -->
-      <div class="zoom-ctrl">
-        <button class="zoom-btn" id="zoomOut" type="button" aria-label="Zoom out">−</button>
-        <button class="zoom-val" id="zoomReset" type="button" aria-label="Fit to width">Fit</button>
-        <button class="zoom-btn" id="zoomIn" type="button" aria-label="Zoom in">+</button>
-      </div>
+      <iframe
+        class="sheet-frame"
+        src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSimmJb2DDSYCNejUNi1xzbJj_F8bz72Mm5-EPnuY70WGwb438MXG-Xe3ahjtshwzS5eF0iJo2Bwj2y/pubhtml?widget=true&amp;headers=false"
+        title="Lycee Google Sheet"
+        loading="lazy"></iframe>
     </section>
   </main>
 
@@ -285,40 +236,6 @@
     const KEY = 'lycee_tx';
     const loadTx = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } };
     document.getElementById('countBadge').textContent = loadTx().length;
-
-    /* ---------------- Sheet zoom + pan (works on phone & desktop) ---------------- */
-    const BASE_W = 1200;                 // must match --base-w in the CSS
-    const ZMAX = 2, ZSTEP = 0.2;         // 1 = sheet's full desktop width; up to 200%
-    const scrollEl = document.querySelector('.sheet-scroll');
-    const zoomVal  = document.getElementById('zoomReset');
-    let zoom = 1, zMin = 0.25;
-
-    /* Zoom level at which the full sheet width fits the screen (the natural "see everything") */
-    function fitZoom(){
-      const w = scrollEl.clientWidth || BASE_W;
-      return Math.max(0.15, Math.min(1, Math.round((w / BASE_W) * 100) / 100));
-    }
-    function applyZoom(){
-      document.documentElement.style.setProperty('--zoom', zoom);
-      zoomVal.textContent = Math.round(zoom * 100) + '%';
-    }
-    function setZoom(z){
-      zoom = Math.min(ZMAX, Math.max(zMin, Math.round(z / ZSTEP) * ZSTEP));
-      if (zoom < zMin) zoom = zMin;      // keep fit-to-width reachable after rounding
-      applyZoom();
-      try { tg.HapticFeedback && tg.HapticFeedback.impactOccurred('light'); } catch(e){}
-    }
-    function fitToWidth(){ zMin = fitZoom(); setZoom(zMin); }
-
-    document.getElementById('zoomIn').onclick    = () => setZoom(zoom + ZSTEP);
-    document.getElementById('zoomOut').onclick   = () => setZoom(zoom - ZSTEP);
-    document.getElementById('zoomReset').onclick = fitToWidth;
-
-    /* Open fitted to width so all charts are visible; then pinch/buttons to zoom, drag to pan */
-    zMin = fitZoom();
-    zoom = zMin;
-    applyZoom();
-    window.addEventListener('resize', () => { zMin = fitZoom(); if (zoom < zMin) setZoom(zMin); });
 
     /* ---------------- Init ---------------- */
     applyI18n();
