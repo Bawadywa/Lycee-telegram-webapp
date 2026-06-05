@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <!-- Sheet page allows native pinch-zoom (in/out) so the embedded sheet is zoomable on phones -->
+  <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=0.25,maximum-scale=5,user-scalable=yes" />
   <title>Lycee — Google Sheet</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -106,16 +107,21 @@
       border-radius:20px; padding:6px; overflow:hidden;
       backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
     }
-    /* Scroll viewport — pans the zoomed sheet without moving the header */
+    /* Viewport — clips the scaled iframe so the header never moves */
     .sheet-scroll{
       flex:1 1 auto; min-height:0; width:100%;
-      overflow:auto; -webkit-overflow-scrolling:touch;
+      overflow:hidden;
       border-radius:14px; background:#fff;
     }
     .sheet-frame{
-      display:block; width:100%; height:100%;
-      border:none; background:#fff;
-      zoom:var(--zoom,1);                 /* magnifies content; WebKit/Blink (Telegram) */
+      display:block; border:none; background:#fff;
+      /* Counter-size + scale so the sheet ALWAYS fills the viewport:
+         zoom < 1 reveals more of the sheet (shrunk to fit),
+         zoom > 1 magnifies it. Internal Google scroll pans the rest. */
+      width:calc(100% / var(--zoom,1));
+      height:calc(100% / var(--zoom,1));
+      transform:scale(var(--zoom,1));
+      transform-origin:0 0;
     }
 
     /* Floating zoom controls — kept off the header so the nav stays identical across pages */
@@ -175,7 +181,8 @@
           allowfullscreen></iframe>
       </div>
 
-      <div class="zoom-ctrl">
+      <!-- Desktop has no pinch gesture, so it gets explicit zoom buttons; phones use native pinch -->
+      <div class="zoom-ctrl desktop-only">
         <button class="zoom-btn" id="zoomOut" type="button" aria-label="Zoom out">−</button>
         <button class="zoom-val" id="zoomReset" type="button" aria-label="Reset zoom">100%</button>
         <button class="zoom-btn" id="zoomIn" type="button" aria-label="Zoom in">+</button>
@@ -275,8 +282,8 @@
     const loadTx = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } };
     document.getElementById('countBadge').textContent = loadTx().length;
 
-    /* ---------------- Sheet zoom ---------------- */
-    const ZMIN = 1, ZMAX = 4, ZSTEP = 0.25;
+    /* ---------------- Sheet zoom (desktop buttons; phones use native pinch) ---------------- */
+    const ZMIN = 0.25, ZMAX = 4, ZSTEP = 0.25;
     let zoom = 1;
     const zoomVal = document.getElementById('zoomReset');
     function applyZoom(){
