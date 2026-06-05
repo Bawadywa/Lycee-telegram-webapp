@@ -97,17 +97,46 @@
     }
     .tab.active .badge{ background:rgba(255,255,255,.28); color:#fff; }
 
-    /* ---------- Sheet embed (fills remaining space) ---------- */
+    /* ---------- Sheet embed (fills remaining space, zoomable) ---------- */
     main{ flex:1 1 auto; min-height:0; display:flex; }
     .sheet-card{
+      position:relative;
       flex:1 1 auto; min-height:0; display:flex;
       background:var(--card_bg); border:1px solid var(--border);
       border-radius:20px; padding:6px; overflow:hidden;
       backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
     }
+    /* Scroll viewport — pans the zoomed sheet without moving the header */
+    .sheet-scroll{
+      flex:1 1 auto; min-height:0; width:100%;
+      overflow:auto; -webkit-overflow-scrolling:touch;
+      border-radius:14px; background:#fff;
+    }
     .sheet-frame{
-      flex:1 1 auto; width:100%; min-height:0;
-      border:none; border-radius:14px; background:#fff;
+      display:block; width:100%; height:100%;
+      border:none; background:#fff;
+      zoom:var(--zoom,1);                 /* magnifies content; WebKit/Blink (Telegram) */
+    }
+
+    /* Floating zoom controls — kept off the header so the nav stays identical across pages */
+    .zoom-ctrl{
+      position:absolute; right:14px; bottom:14px; z-index:5;
+      display:inline-flex; align-items:center; gap:2px;
+      padding:4px; border-radius:999px;
+      background:var(--card_bg); border:1px solid var(--border);
+      backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+      box-shadow:0 6px 20px rgba(0,0,0,.28);
+    }
+    .zoom-btn{
+      width:36px; height:36px; margin:0; padding:0; border:none; border-radius:999px;
+      background:transparent; color:var(--text); font-family:inherit; font-size:22px; font-weight:700; line-height:1;
+      cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    }
+    .zoom-btn:active{ transform:translateY(1px); }
+    .zoom-val{
+      min-width:54px; height:36px; margin:0; padding:0 8px; border:none; border-radius:999px;
+      background:transparent; color:var(--text); font-family:inherit; font-size:13px; font-weight:700;
+      cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
     }
   </style>
 </head>
@@ -137,12 +166,20 @@
 
   <main>
     <section class="sheet-card">
-      <iframe
-        class="sheet-frame"
-        src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSimmJb2DDSYCNejUNi1xzbJj_F8bz72Mm5-EPnuY70WGwb438MXG-Xe3ahjtshwzS5eF0iJo2Bwj2y/pubhtml?widget=true&amp;headers=false"
-        title="Lycee Google Sheet"
-        loading="lazy"
-        allowfullscreen></iframe>
+      <div class="sheet-scroll">
+        <iframe
+          class="sheet-frame"
+          src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSimmJb2DDSYCNejUNi1xzbJj_F8bz72Mm5-EPnuY70WGwb438MXG-Xe3ahjtshwzS5eF0iJo2Bwj2y/pubhtml?widget=true&amp;headers=false"
+          title="Lycee Google Sheet"
+          loading="lazy"
+          allowfullscreen></iframe>
+      </div>
+
+      <div class="zoom-ctrl">
+        <button class="zoom-btn" id="zoomOut" type="button" aria-label="Zoom out">−</button>
+        <button class="zoom-val" id="zoomReset" type="button" aria-label="Reset zoom">100%</button>
+        <button class="zoom-btn" id="zoomIn" type="button" aria-label="Zoom in">+</button>
+      </div>
     </section>
   </main>
 
@@ -237,6 +274,24 @@
     const KEY = 'lycee_tx';
     const loadTx = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } };
     document.getElementById('countBadge').textContent = loadTx().length;
+
+    /* ---------------- Sheet zoom ---------------- */
+    const ZMIN = 1, ZMAX = 4, ZSTEP = 0.25;
+    let zoom = 1;
+    const zoomVal = document.getElementById('zoomReset');
+    function applyZoom(){
+      document.documentElement.style.setProperty('--zoom', zoom);
+      zoomVal.textContent = Math.round(zoom * 100) + '%';
+    }
+    function setZoom(z){
+      zoom = Math.min(ZMAX, Math.max(ZMIN, Math.round(z / ZSTEP) * ZSTEP));
+      applyZoom();
+      try { tg.HapticFeedback && tg.HapticFeedback.impactOccurred('light'); } catch(e){}
+    }
+    document.getElementById('zoomIn').onclick   = () => setZoom(zoom + ZSTEP);
+    document.getElementById('zoomOut').onclick  = () => setZoom(zoom - ZSTEP);
+    document.getElementById('zoomReset').onclick = () => setZoom(1);
+    applyZoom();
 
     /* ---------------- Init ---------------- */
     applyI18n();
