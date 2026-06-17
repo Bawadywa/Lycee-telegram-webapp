@@ -132,6 +132,10 @@
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4 6 8 10 12 6'/%3E%3C/svg%3E");
       background-repeat:no-repeat; background-position:right 12px center; padding-right:36px;
     }
+    /* The native dropdown popup ignores the translucent field bg and renders white by default,
+       making white option text unreadable in dark mode — pin solid colors on the options. */
+    select option, select optgroup{ background-color:var(--secondary_bg); color:var(--text); }
+    select option:disabled{ color:var(--hint); }
 
     .row2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 
