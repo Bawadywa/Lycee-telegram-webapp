@@ -239,6 +239,16 @@
         </div>
       </div>
 
+      <label data-i18n="field.category">Category</label>
+      <select id="category">
+        <option value="" disabled selected data-i18n="ph.select">Select…</option>
+      </select>
+
+      <label data-i18n="field.counterparty">Counterparty</label>
+      <select id="counterparty">
+        <option value="" disabled selected data-i18n="ph.select">Select…</option>
+      </select>
+
       <label data-i18n="field.comment">Comment</label>
       <textarea id="comment" rows="3" data-i18n-ph="ph.comment" placeholder="What was it for?"></textarea>
 
@@ -268,21 +278,23 @@
       en:{
         'tab.new':'New', 'tab.list':'Transactions', 'tab.sheet':'Google Sheet',
         'form.title':'New transaction', 'form.subtitle':'Add an entry to your ledger.',
-        'field.date':'Date', 'field.total':'Total', 'field.currency':'Currency', 'field.comment':'Comment',
-        'ph.date':'📅 Select date', 'ph.comment':'What was it for?',
+        'field.date':'Date', 'field.total':'Total', 'field.currency':'Currency',
+        'field.category':'Category', 'field.counterparty':'Counterparty', 'field.comment':'Comment',
+        'ph.date':'📅 Select date', 'ph.comment':'What was it for?', 'ph.select':'Select…',
         'btn.create':'Create transaction', 'btn.random':'Generate random data',
         'toast.created':'Transaction added', 'toast.generated':'5 transactions generated',
-        'alert.fill':'Please enter a date and a valid total.',
+        'alert.fill':'Please fill in date, total, category and counterparty.',
         'theme':'Theme'
       },
       uk:{
         'tab.new':'Нова', 'tab.list':'Транзакції', 'tab.sheet':'Google Sheet',
         'form.title':'Нова транзакція', 'form.subtitle':'Додайте запис до вашого журналу.',
-        'field.date':'Дата', 'field.total':'Сума', 'field.currency':'Валюта', 'field.comment':'Коментар',
-        'ph.date':'📅 Оберіть дату', 'ph.comment':'За що?',
+        'field.date':'Дата', 'field.total':'Сума', 'field.currency':'Валюта',
+        'field.category':'Категорія', 'field.counterparty':'Контрагент', 'field.comment':'Коментар',
+        'ph.date':'📅 Оберіть дату', 'ph.comment':'За що?', 'ph.select':'Оберіть…',
         'btn.create':'Створити транзакцію', 'btn.random':'Згенерувати дані',
         'toast.created':'Транзакцію додано', 'toast.generated':'Згенеровано 5 транзакцій',
-        'alert.fill':'Вкажіть дату та коректну суму.',
+        'alert.fill':'Вкажіть дату, суму, категорію та контрагента.',
         'theme':'Тема'
       }
     };
@@ -372,19 +384,74 @@
     const saveTx = (a) => localStorage.setItem(KEY, JSON.stringify(a));
     const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(16).slice(2));
     const updateBadge = () => { document.getElementById('countBadge').textContent = loadTx().length; };
+    const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+    /* ---------------- Dropdown options (category + counterparty) ----------------
+       Options are loaded from the API on page load. Point API_BASE at your backend
+       origin to fetch from <API_BASE>/api/categories and <API_BASE>/api/counterparties.
+       Each endpoint should return either ["Name", ...] or [{ "value": "...", "label": "..." }, ...]
+       ({ id, name } is also accepted). Leave API_BASE empty to use the fallback lists below. */
+    const API_BASE = '';
+    const FALLBACK_CATEGORIES = ['Sales','Services','Salary','Rent','Utilities','Marketing','Software','Travel','Taxes','Other'];
+    const FALLBACK_COUNTERPARTIES = ['Acme Corp','Globex','Initech','Umbrella Co','Stark Industries','Wayne Enterprises','Soylent','Hooli'];
+
+    const catSel = document.getElementById('category');
+    const cpSel  = document.getElementById('counterparty');
+    let CATEGORIES = [];      // [{ value, label }]
+    let COUNTERPARTIES = [];
+
+    function normOptions(data){
+      const list = Array.isArray(data) ? data : (Array.isArray(data && data.items) ? data.items : []);
+      return list
+        .map(x => (typeof x === 'string' || typeof x === 'number')
+          ? { value: String(x), label: String(x) }
+          : { value: String(x.value ?? x.id ?? x.name ?? ''), label: String(x.label ?? x.name ?? x.value ?? x.id ?? '') })
+        .filter(o => o.value);
+    }
+
+    async function fetchOptions(path, fallback){
+      if (API_BASE){
+        try {
+          const res = await fetch(API_BASE.replace(/\/$/, '') + path, { headers:{ 'Accept':'application/json' } });
+          if (res.ok){
+            const opts = normOptions(await res.json());
+            if (opts.length) return opts;
+          }
+        } catch(e){ /* network/parse error → fall back below */ }
+      }
+      return fallback.map(x => ({ value: x, label: x }));
+    }
+
+    function fillSelect(sel, options){
+      const ph = `<option value="" disabled selected data-i18n="ph.select">${esc(t('ph.select'))}</option>`;
+      sel.innerHTML = ph + options.map(o => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('');
+    }
+
+    async function loadOptions(){
+      [CATEGORIES, COUNTERPARTIES] = await Promise.all([
+        fetchOptions('/api/categories', FALLBACK_CATEGORIES),
+        fetchOptions('/api/counterparties', FALLBACK_COUNTERPARTIES)
+      ]);
+      fillSelect(catSel, CATEGORIES);
+      fillSelect(cpSel, COUNTERPARTIES);
+    }
 
     /* ---------------- Random data ---------------- */
     const CURRENCIES = ['USD','EUR','UAH','GBP','PLN'];
     const COMMENTS = ['Client payment','Office supplies','Subscription','Consulting','Hardware',
                       'Marketing','Travel','Refund','Software license','Logistics'];
     const ri = (a,b) => Math.floor(Math.random() * (b - a + 1)) + a;
+    const pick = (arr) => arr.length ? arr[ri(0, arr.length - 1)] : null;
     function randomTx(){
       const d = new Date(); d.setDate(d.getDate() - ri(0,60));
+      const cat = pick(CATEGORIES), cp = pick(COUNTERPARTIES);
       return {
         id: uid(),
         date: d.toISOString().slice(0,10),
         total: ri(50, 9999) + Math.round(Math.random()*100)/100,
         currency: CURRENCIES[ri(0, CURRENCIES.length - 1)],
+        category: cat ? cat.value : '',
+        counterparty: cp ? cp.value : '',
         comment: COMMENTS[ri(0, COMMENTS.length - 1)]
       };
     }
@@ -410,18 +477,22 @@
       const date = dateInput.value;
       const total = parseFloat(document.getElementById('total').value);
       const currency = document.getElementById('currency').value;
+      const category = catSel.value;
+      const counterparty = cpSel.value;
       const comment = document.getElementById('comment').value.trim();
 
-      if (!date || isNaN(total) || total <= 0){
+      if (!date || isNaN(total) || total <= 0 || !category || !counterparty){
         if (typeof tg.showAlert === 'function') tg.showAlert(t('alert.fill')); else alert(t('alert.fill'));
         return;
       }
       const txs = loadTx();
-      txs.unshift({ id: uid(), date, total, currency, comment });
+      txs.unshift({ id: uid(), date, total, currency, category, counterparty, comment });
       saveTx(txs);
       haptic('success');
       document.getElementById('total').value = '';
       document.getElementById('comment').value = '';
+      catSel.selectedIndex = 0;
+      cpSel.selectedIndex = 0;
       updateBadge();
       showToast(t('toast.created'));
     };
@@ -439,6 +510,7 @@
     applyI18n();
     updateBadge();
     syncDate();
+    loadOptions();
   </script>
 </body>
 </html>

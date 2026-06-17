@@ -212,6 +212,8 @@
                 <th data-i18n="th.date">Date</th>
                 <th class="right" data-i18n="th.total">Total</th>
                 <th data-i18n="th.currency">Currency</th>
+                <th data-i18n="th.category">Category</th>
+                <th data-i18n="th.counterparty">Counterparty</th>
                 <th data-i18n="th.comment">Comment</th>
                 <th class="act"></th>
               </tr>
@@ -257,7 +259,8 @@
       en:{
         'tab.new':'New', 'tab.list':'Transactions', 'tab.sheet':'Google Sheet',
         'table.title':'Transactions', 'table.subtitle':"Everything you've added so far.",
-        'th.date':'Date', 'th.total':'Total', 'th.currency':'Currency', 'th.comment':'Comment',
+        'th.date':'Date', 'th.total':'Total', 'th.currency':'Currency',
+        'th.category':'Category', 'th.counterparty':'Counterparty', 'th.comment':'Comment',
         'empty.title':'No transactions yet',
         'empty.text':'Create one or generate sample data on the New tab.',
         'empty.cta':'Go to New',
@@ -269,7 +272,8 @@
       uk:{
         'tab.new':'Нова', 'tab.list':'Транзакції', 'tab.sheet':'Google Sheet',
         'table.title':'Транзакції', 'table.subtitle':'Усе, що ви додали.',
-        'th.date':'Дата', 'th.total':'Сума', 'th.currency':'Валюта', 'th.comment':'Коментар',
+        'th.date':'Дата', 'th.total':'Сума', 'th.currency':'Валюта',
+        'th.category':'Категорія', 'th.counterparty':'Контрагент', 'th.comment':'Коментар',
         'empty.title':'Поки немає транзакцій',
         'empty.text':'Створіть або згенеруйте дані на вкладці «Нова».',
         'empty.cta':'До вкладки «Нова»',
@@ -410,6 +414,8 @@
           <td class="t-date">${fmtDate(tx.date)}</td>
           <td class="t-total">${fmtNum(tx.total)}</td>
           <td><span class="cur-chip">${escapeHtml(tx.currency)}</span></td>
+          <td>${tx.category ? `<span class="cur-chip">${escapeHtml(tx.category)}</span>` : '—'}</td>
+          <td>${escapeHtml(tx.counterparty || '—')}</td>
           <td class="t-comment">${escapeHtml(tx.comment || '—')}</td>
           <td class="act"><button class="del" type="button" aria-label="Delete">✕</button></td>
         </tr>
