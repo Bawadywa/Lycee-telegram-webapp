@@ -10,12 +10,12 @@
                 Plain local testing:    'http://localhost:8000'
                 Leave '' to show a "configure me" hint instead of failing.
 
-   DEV_USER_ID  Fallback Telegram user id used only when the app is opened
-                OUTSIDE Telegram (plain browser / ngrok testing), where
-                Telegram.WebApp.initDataUnsafe.user.id is not available.
-                You can also override per-open with a ?uid=123 query param.
+   DEV_USER_ID  Keep this 0. Inside Telegram the REAL user id is used automatically.
+                Set it to YOUR OWN real Telegram id ONLY for plain-browser testing
+                (never a made-up number like 123456789 — that just pollutes the DB).
+                For one-off browser tests prefer the ?uid=<your id> query param.
    ============================================================================ */
 window.LYCEE_CONFIG = {
   API_BASE: 'https://dominion-strenuous-wrongful.ngrok-free.dev',
-  DEV_USER_ID: 123456789
+  DEV_USER_ID: 0
 };

@@ -20,34 +20,75 @@
 
   var base = String(cfg.API_BASE || '').replace(/\/+$/, '');
 
-  // --- user id resolution -------------------------------------------------
-  // Telegram's signed launch data lives in the URL fragment (#tgWebAppData=…)
-  // and is ONLY present on the page Telegram opened (index.html). As soon as the
-  // user navigates to table.html / sheet.html the fragment is gone, so the real
-  // user would be lost and we'd fall back to the dev id (e.g. 123456789). To
-  // avoid that we persist the real Telegram id the first time we see it and
-  // reuse it on the fragment-less pages.
+  // --- Telegram user id resolution ----------------------------------------
+  // We try HARD to find the REAL Telegram id, from three independent sources,
+  // because initDataUnsafe.user can be empty depending on client/launch method:
+  //   1. tg.initDataUnsafe.user.id          (the normal path)
+  //   2. tg.initData                        (raw "user=<json>&hash=…" string)
+  //   3. location.hash #tgWebAppData=…      (raw launch fragment)
+  // The real id (only ever from Telegram) is cached in localStorage so the
+  // fragment-less tabs (table/sheet) keep using it after in-app navigation.
+  //
+  // There is intentionally NO fake fallback id anymore. If we can't find a real
+  // Telegram id and no explicit ?uid= test override is given, userId stays 0 and
+  // we DO NOT create a user — so a junk id like 123456789 can never be created.
   var UID_KEY = 'lycee_uid';
   function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
   function lsSet(k,v){ try { localStorage.setItem(k, v); } catch(e){} }
 
-  function resolveUserId() {
+  // Pull "user=<json>" out of a urlencoded initData string and return its id.
+  function idFromInitDataString(s) {
+    if (!s) return 0;
+    try {
+      var raw = new URLSearchParams(s).get('user');
+      if (!raw) return 0;
+      var user = JSON.parse(raw);
+      return (user && user.id) ? Number(user.id) : 0;
+    } catch (e) { return 0; }
+  }
+
+  function telegramUserId() {
+    // 1) structured
     var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
-    if (u && u.id) {                                            // real Telegram user (launch page)
-      lsSet(UID_KEY, String(u.id));
-      return { id: Number(u.id), src: 'telegram' };
-    }
+    if (u && u.id) return Number(u.id);
+    // 2) raw initData string
+    var fromInit = idFromInitDataString(tg && tg.initData);
+    if (fromInit) return fromInit;
+    // 3) raw launch fragment (#tgWebAppData=<urlencoded initData>)
+    var hash = (location.hash || '').replace(/^#/, '');
+    var tgData = new URLSearchParams(hash).get('tgWebAppData');
+    var fromHash = idFromInitDataString(tgData);
+    if (fromHash) return fromHash;
+    return 0;
+  }
+
+  function resolveUserId() {
+    var live = telegramUserId();
+    if (live) { lsSet(UID_KEY, String(live)); return { id: live, src: 'telegram' }; }
+
     var fromQuery = Number(new URLSearchParams(location.search).get('uid'));
-    if (fromQuery) return { id: fromQuery, src: 'uid-param' };  // explicit testing override
+    if (fromQuery) return { id: fromQuery, src: 'uid-param' };   // explicit testing override
+
     var stored = Number(lsGet(UID_KEY));
-    if (stored) return { id: stored, src: 'stored-telegram' };  // reused after in-app navigation
-    return { id: Number(cfg.DEV_USER_ID) || 0, src: 'dev-fallback' }; // plain browser, no Telegram
+    if (stored) return { id: stored, src: 'stored-telegram' };   // real id seen earlier this device
+
+    var dev = Number(cfg.DEV_USER_ID) || 0;                      // only if YOU set a real id in config
+    if (dev) return { id: dev, src: 'config-dev-id' };
+
+    return { id: 0, src: 'none' };                               // no real id → will NOT create a user
   }
   var resolved = resolveUserId();
   var userId = resolved.id;
   var userSrc = resolved.src;
   var inTelegram = (userSrc === 'telegram' || userSrc === 'stored-telegram');
-  try { console.info('[Lycee] user_id =', userId, '(source: ' + userSrc + ')'); } catch (e) {}
+  try {
+    if (userSrc === 'none') {
+      console.error('[Lycee] No Telegram user id found — app was not opened from Telegram ' +
+        'and no ?uid= / DEV_USER_ID is set. NOT creating a user.');
+    } else {
+      console.info('[Lycee] user_id =', userId, '(source: ' + userSrc + ')');
+    }
+  } catch (e) {}
 
   // Carry the Telegram launch fragment across in-app navigation so initData stays
   // available on every tab (defence-in-depth alongside the persisted id above).
