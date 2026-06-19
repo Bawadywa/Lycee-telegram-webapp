@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="./config.js?v=19"></script>
-  <script src="./api.js?v=19"></script>
+  <script src="./config.js?v=20"></script>
+  <script src="./api.js?v=20"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -741,15 +741,16 @@
       finally { randomBtn.disabled = false; }
     };
 
-    /* ---------------- Google Sheet (lazy, one per user, persists across tabs) ---------------- */
+    /* ---------------- Google Sheet (lazy, one per user, persists across tabs) ----------------
+       The BACKEND is the single source of truth for whether a sheet exists. We do
+       NOT cache the sheet URL on the client — a stale cache was showing trashed /
+       non-existent sheets when the DB was empty. We always GET from the backend. */
     const frame      = document.getElementById('sheetFrame');
     const stateBox   = document.getElementById('sheetState');
     const loadingBox = document.getElementById('sheetLoading');
     const noTxBox    = document.getElementById('sheetNoTx');
-    const SHEET_KEY  = 'lycee_sheet_url_' + (Lycee.userId || 'anon');
-    const cachedSheetUrl  = () => { try { return localStorage.getItem(SHEET_KEY) || ''; } catch(e){ return ''; } };
-    const rememberSheetUrl = (u) => { try { if (u) localStorage.setItem(SHEET_KEY, u); } catch(e){} };
-    const forgetSheetUrl  = () => { try { localStorage.removeItem(SHEET_KEY); } catch(e){} };
+    // One-time cleanup of the old client-side cache from previous versions.
+    try { localStorage.removeItem('lycee_sheet_url_' + (Lycee.userId || 'anon')); } catch(e){}
 
     let sheetShown = false;    // a sheet is currently embedded
     let sheetLoading = false;  // a load is in flight
@@ -784,30 +785,26 @@
     }
 
     async function loadSheet(){
-      const known = cachedSheetUrl();
-      if (known) showSheetFrame(known); else showSheetLoading();
+      showSheetLoading();
       if (!Lycee.configured) return;
       try {
-        // GET first — reuse the existing sheet if there is one.
+        // GET from the backend (source of truth) — reuse the sheet only if it exists there.
         const sheetRes = await Lycee.getSheetUrl();
         let url = sheetRes && sheetRes.url;
         if (url){
-          rememberSheetUrl(url); sheetReady = true; showSheetFrame(url);
+          sheetReady = true; showSheetFrame(url);
           if (pendingRefresh){ pendingRefresh = false; refreshSheetData(); } // catch up stale data
           return;
         }
-        // Backend says no sheet → drop any stale local cache, it's NOT generated.
-        forgetSheetUrl(); sheetReady = false;
-        // Create once, only if there is something to publish.
+        // No sheet in the DB → it does NOT exist. Create once, only if there's data.
+        sheetReady = false;
         const txs = (TX && TX.length) ? TX : (await Lycee.getTransactions());
         if (!txs || !txs.length){ showSheetNoTx(); return; }
         const res = await Lycee.createSheet();
         url = res && res.url;
-        if (url){
-          rememberSheetUrl(url); sheetReady = true; pendingRefresh = false; // freshly built with current data
-          showSheetFrame(url);
-        } else showSheetLoading();
-      } catch(e){ console.error(e); if (!sheetReady) showSheetLoading(); }
+        if (url){ sheetReady = true; pendingRefresh = false; showSheetFrame(url); }
+        else showSheetLoading();
+      } catch(e){ console.error(e); showSheetLoading(); }
     }
     async function ensureSheetLoaded(){
       if (sheetShown || sheetLoading) return; // already embedded → leave it untouched
