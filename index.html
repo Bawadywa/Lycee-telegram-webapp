@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="./config.js?v=21"></script>
-  <script src="./api.js?v=21"></script>
+  <script src="./config.js?v=22"></script>
+  <script src="./api.js?v=22"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -576,7 +576,10 @@
       Object.keys(views).forEach(k => { views[k].hidden = (k !== name); });
       tabBtns.forEach(b => b.classList.toggle('active', b.dataset.view === name));
       if (name === 'table') reconcileTable();
-      if (name === 'sheet') ensureSheetLoaded();
+      if (name === 'sheet'){
+        if (!sheetShown) ensureSheetLoaded();
+        else if (frameStale) reloadSheetFrame(); // refresh stale data on reopen
+      }
     }
     tabBtns.forEach(b => { b.onclick = () => showView(b.dataset.view); });
 
@@ -748,12 +751,21 @@
     let sheetLoading = false;  // a load is in flight
     let sheetReady = false;    // the sheet EXISTS on the backend (confirmed/created this session)
     let pendingRefresh = false;// a tx change happened before the sheet existed → refresh once it does
+    let sheetUrl = '';         // the clean (un-busted) published URL currently embedded
+    let frameStale = false;    // data changed → the embedded iframe is showing old data
 
     function showSheetLoading(){ frame.style.display='none'; stateBox.style.display='flex'; loadingBox.style.display=''; noTxBox.style.display='none'; }
     function showSheetNoTx(){ frame.style.display='none'; stateBox.style.display='flex'; loadingBox.style.display='none'; noTxBox.style.display=''; }
     function showSheetFrame(url){
-      if (frame.getAttribute('src') !== url) frame.src = url;
-      frame.style.display=''; stateBox.style.display='none'; sheetShown = true;
+      sheetUrl = url;
+      if (frame.getAttribute('src') !== url) frame.src = url; // first embed only (no needless reload on tab switch)
+      frame.style.display=''; stateBox.style.display='none'; sheetShown = true; frameStale = false;
+    }
+    // Force a fresh load of the embed (like Ctrl+F5) by busting the URL cache.
+    function reloadSheetFrame(){
+      if (!sheetUrl) return;
+      frame.src = sheetUrl + (sheetUrl.indexOf('?') >= 0 ? '&' : '?') + 'r=' + Date.now();
+      frame.style.display=''; stateBox.style.display='none'; sheetShown = true; frameStale = false;
     }
 
     // On any transaction change, refresh the EXISTING sheet's data in place (clear → fill).
@@ -772,6 +784,10 @@
           await Lycee.clearSheet();
           await Lycee.fillSheet();
         } while (sheetDirty);
+        // Data updated → the embed is now stale. Reload it (cache-busted) if the
+        // user is looking at it; otherwise refresh it next time they open the tab.
+        frameStale = true;
+        if (!views.sheet.hidden) reloadSheetFrame();
       } catch(e){ console.error('[Lycee] sheet refresh failed', e); }
       finally { sheetRefreshing = false; }
     }
