@@ -17,5 +17,8 @@
    ============================================================================ */
 window.LYCEE_CONFIG = {
   API_BASE: 'https://dominion-strenuous-wrongful.ngrok-free.dev',
-  DEV_USER_ID: 0
+  DEV_USER_ID: 0,
+  // Flip to true to show the on-screen "🐞 logs" button + console panel (handy on
+  // mobile where there's no devtools). Can also be enabled per-open with ?debug=1.
+  DEBUG: false
 };

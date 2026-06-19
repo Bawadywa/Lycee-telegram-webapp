@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="./config.js?v=16"></script>
-  <script src="./api.js?v=16"></script>
+  <script src="./config.js?v=19"></script>
+  <script src="./api.js?v=19"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -202,7 +202,7 @@
     tbody td{ padding:13px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
     tbody tr:last-child td{ border-bottom:none; }
     .t-date{ white-space:nowrap; color:var(--text); }
-    .t-total{ font-weight:800; text-align:right; white-space:nowrap; }
+    .t-total{ font-weight:800; white-space:nowrap; }
     .t-comment{ color:var(--hint); max-width:160px; }
     .cur-chip{
       display:inline-block; padding:3px 9px; border-radius:999px;
@@ -361,7 +361,7 @@
                 <thead>
                   <tr>
                     <th data-i18n="th.date">Date</th>
-                    <th class="right" data-i18n="th.total">Total</th>
+                    <th data-i18n="th.total">Total</th>
                     <th data-i18n="th.currency">Currency</th>
                     <th data-i18n="th.type">Type</th>
                     <th data-i18n="th.category">Category</th>
@@ -749,9 +749,12 @@
     const SHEET_KEY  = 'lycee_sheet_url_' + (Lycee.userId || 'anon');
     const cachedSheetUrl  = () => { try { return localStorage.getItem(SHEET_KEY) || ''; } catch(e){ return ''; } };
     const rememberSheetUrl = (u) => { try { if (u) localStorage.setItem(SHEET_KEY, u); } catch(e){} };
+    const forgetSheetUrl  = () => { try { localStorage.removeItem(SHEET_KEY); } catch(e){} };
 
     let sheetShown = false;    // a sheet is currently embedded
     let sheetLoading = false;  // a load is in flight
+    let sheetReady = false;    // the sheet EXISTS on the backend (confirmed/created this session)
+    let pendingRefresh = false;// a tx change happened before the sheet existed → refresh once it does
 
     function showSheetLoading(){ frame.style.display='none'; stateBox.style.display='flex'; loadingBox.style.display=''; noTxBox.style.display='none'; }
     function showSheetNoTx(){ frame.style.display='none'; stateBox.style.display='flex'; loadingBox.style.display='none'; noTxBox.style.display=''; }
@@ -760,12 +763,14 @@
       frame.style.display=''; stateBox.style.display='none'; sheetShown = true;
     }
 
-    // On any transaction change, refresh the EXISTING sheet's data in place
-    // (clear → fill). Only runs once a sheet has been created (cached URL present).
+    // On any transaction change, refresh the EXISTING sheet's data in place (clear → fill).
+    // HARD GUARD: never call clear/fill before the sheet has actually been generated.
+    // If the sheet doesn't exist yet, just remember to refresh once it's created.
     // Serialized + coalesced so rapid changes don't interleave clear/fill calls.
     let sheetRefreshing = false, sheetDirty = false;
     async function refreshSheetData(){
-      if (!Lycee.configured || !cachedSheetUrl()) return; // no sheet yet → nothing to refresh
+      if (!Lycee.configured) return;
+      if (!sheetReady){ pendingRefresh = true; return; } // not generated yet → defer, no requests
       if (sheetRefreshing){ sheetDirty = true; return; }
       sheetRefreshing = true;
       try {
@@ -783,18 +788,26 @@
       if (known) showSheetFrame(known); else showSheetLoading();
       if (!Lycee.configured) return;
       try {
+        // GET first — reuse the existing sheet if there is one.
         const sheetRes = await Lycee.getSheetUrl();
         let url = sheetRes && sheetRes.url;
-        if (url){ rememberSheetUrl(url); showSheetFrame(url); return; }
-        if (known) return; // backend empty but we have a cached one → keep it
-        // none yet → create once, only if there is something to publish
+        if (url){
+          rememberSheetUrl(url); sheetReady = true; showSheetFrame(url);
+          if (pendingRefresh){ pendingRefresh = false; refreshSheetData(); } // catch up stale data
+          return;
+        }
+        // Backend says no sheet → drop any stale local cache, it's NOT generated.
+        forgetSheetUrl(); sheetReady = false;
+        // Create once, only if there is something to publish.
         const txs = (TX && TX.length) ? TX : (await Lycee.getTransactions());
         if (!txs || !txs.length){ showSheetNoTx(); return; }
         const res = await Lycee.createSheet();
         url = res && res.url;
-        if (url){ rememberSheetUrl(url); showSheetFrame(url); }
-        else if (!known) showSheetLoading();
-      } catch(e){ console.error(e); if (!known) showSheetLoading(); }
+        if (url){
+          rememberSheetUrl(url); sheetReady = true; pendingRefresh = false; // freshly built with current data
+          showSheetFrame(url);
+        } else showSheetLoading();
+      } catch(e){ console.error(e); if (!sheetReady) showSheetLoading(); }
     }
     async function ensureSheetLoaded(){
       if (sheetShown || sheetLoading) return; // already embedded → leave it untouched

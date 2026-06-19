@@ -18,6 +18,72 @@
   // is populated before we read it.
   if (tg && typeof tg.ready === 'function') { try { tg.ready(); } catch (e) {} }
 
+  // --- on-screen debug console -------------------------------------------
+  // Mirrors all console.* output into a panel toggled by a floating button, so
+  // logs are visible on mobile (no devtools). Turn on with LYCEE_CONFIG.DEBUG =
+  // true (config.js) or ?debug=1. Console wrapping happens immediately so even
+  // early logs are captured; the UI is built once the DOM is ready.
+  var DEBUG = !!cfg.DEBUG || new URLSearchParams(location.search).get('debug') === '1';
+  if (DEBUG) (function () {
+    var logs = [], MAX = 500, panel, body, open = false;
+    function fmt(a){
+      if (a instanceof Error) return a.stack || a.message;
+      if (a && typeof a === 'object'){ try { return JSON.stringify(a); } catch (e) { return String(a); } }
+      return String(a);
+    }
+    var COLORS = { log:'#9fe6c8', info:'#6cf', warn:'#fd6', error:'#f88', debug:'#bbb' };
+    function appendLine(e){
+      if (!body) return;
+      var div = document.createElement('div');
+      div.style.cssText = 'padding:2px 0;border-bottom:1px solid rgba(255,255,255,.06);color:' + (COLORS[e.kind] || '#ddd');
+      div.textContent = e.ts.toTimeString().slice(0,8) + ' ' + e.text;
+      body.appendChild(div); body.scrollTop = body.scrollHeight;
+    }
+    function record(kind, args){
+      var e = { kind: kind, ts: new Date(), text: Array.prototype.map.call(args, fmt).join(' ') };
+      logs.push(e); if (logs.length > MAX) logs.shift();
+      if (open) appendLine(e);
+    }
+    ['log','info','warn','error','debug'].forEach(function (m){
+      var orig = console[m] ? console[m].bind(console) : function(){};
+      console[m] = function(){ record(m, arguments); orig.apply(console, arguments); };
+    });
+    window.addEventListener('error', function(e){ record('error', ['[error] ' + e.message + ' @ ' + (e.filename||'') + ':' + (e.lineno||'')]); });
+    window.addEventListener('unhandledrejection', function(e){ var r = e.reason; record('error', ['[promise] ' + ((r && (r.stack||r.message)) || r)]); });
+
+    function mkbtn(label, fn){
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+      b.style.cssText = 'padding:5px 10px;border:none;border-radius:8px;background:#0a0;color:#000;font:700 12px ui-monospace,monospace;cursor:pointer;';
+      b.onclick = fn; return b;
+    }
+    function build(){
+      var btn = document.createElement('button');
+      btn.type = 'button'; btn.textContent = '🐞 logs';
+      btn.style.cssText = 'position:fixed;right:10px;bottom:10px;z-index:100000;padding:8px 12px;border:none;border-radius:999px;background:#1b1b1b;color:#0f0;font:12px/1 ui-monospace,monospace;box-shadow:0 4px 14px rgba(0,0,0,.45);cursor:pointer;opacity:.85;';
+      btn.onclick = function(){ open ? hide() : show(); };
+
+      panel = document.createElement('div');
+      panel.style.cssText = 'position:fixed;left:0;right:0;bottom:0;height:55vh;z-index:99999;display:none;flex-direction:column;background:rgba(0,0,0,.94);border-top:1px solid #0a0;';
+      var bar = document.createElement('div');
+      bar.style.cssText = 'flex:none;display:flex;gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.1);';
+      var title = document.createElement('span');
+      title.textContent = 'Lycee debug'; title.style.cssText = 'flex:1;color:#0f0;font:700 13px ui-monospace,monospace;';
+      var copyBtn  = mkbtn('Copy',  function(){ try { navigator.clipboard.writeText(logs.map(function(l){ return l.ts.toTimeString().slice(0,8) + ' [' + l.kind + '] ' + l.text; }).join('\n')); } catch(e){} });
+      var clearBtn = mkbtn('Clear', function(){ logs.length = 0; if (body) body.innerHTML = ''; });
+      var closeBtn = mkbtn('Close', hide);
+      bar.appendChild(title); bar.appendChild(copyBtn); bar.appendChild(clearBtn); bar.appendChild(closeBtn);
+
+      body = document.createElement('div');
+      body.style.cssText = 'flex:1;overflow:auto;padding:8px 10px;font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;color:#ddd;white-space:pre-wrap;word-break:break-word;';
+      panel.appendChild(bar); panel.appendChild(body);
+      document.body.appendChild(panel); document.body.appendChild(btn);
+    }
+    function show(){ open = true; panel.style.display = 'flex'; body.innerHTML = ''; logs.forEach(appendLine); }
+    function hide(){ open = false; panel.style.display = 'none'; }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build);
+    else build();
+  })();
+
   var base = String(cfg.API_BASE || '').replace(/\/+$/, '');
 
   // --- Telegram user id resolution ----------------------------------------
