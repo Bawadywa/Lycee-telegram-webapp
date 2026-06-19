@@ -105,6 +105,30 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', preserveHashOnLinks);
   else preserveHashOnLinks();
 
+  // --- transactions cache (shared across tabs) ----------------------------
+  // Transactions only change when the user creates or deletes them, so we cache
+  // the last known list per user. Every tab paints its count badge (and the
+  // table its rows) from this cache INSTANTLY on load — no flash to 0 and back.
+  // A background fetch then reconciles silently and only updates if it differs.
+  var TX_KEY = 'lycee_tx_' + (userId || 'anon');
+  function getCachedTx() {
+    try { var v = JSON.parse(localStorage.getItem(TX_KEY)); return Array.isArray(v) ? v : null; }
+    catch (e) { return null; }
+  }
+  function setCachedTx(list) {
+    try { localStorage.setItem(TX_KEY, JSON.stringify(Array.isArray(list) ? list : [])); } catch (e) {}
+  }
+  function cachedCount() { var c = getCachedTx(); return c ? c.length : null; }
+
+  // Paint the nav count badge from cache the moment the DOM is ready (all tabs).
+  function paintBadgeFromCache() {
+    var el = document.getElementById('countBadge');
+    var c = cachedCount();
+    if (el && c != null) el.textContent = c;
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', paintBadgeFromCache);
+  else paintBadgeFromCache();
+
   // core fetch: adds base, JSON + ngrok headers, throws on non-2xx
   async function req(path, opts) {
     opts = opts || {};
@@ -154,7 +178,12 @@
   function getTransactionTypes() { return req('/transaction_types' + qp()); }
 
   /* -------- transactions -------- */
-  function getTransactions() { return req('/transactions' + qp()); }
+  // Every successful fetch refreshes the shared cache so other tabs render instantly.
+  async function getTransactions() {
+    var list = await req('/transactions' + qp());
+    setCachedTx(list || []);
+    return list || [];
+  }
   function generateRandom(count) { return req('/transactions/random' + qp({ count: count || 5 }), { method: 'POST' }); }
   function createTransaction(data) {
     var body = Object.assign({ user_id: userId }, data);
@@ -193,6 +222,9 @@
     getCounterparties: getCounterparties,
     getTransactionTypes: getTransactionTypes,
     getTransactions: getTransactions,
+    cachedTransactions: getCachedTx,   // last known list (or null) — for instant render
+    cachedCount: cachedCount,          // last known count (or null)
+    setCachedTransactions: setCachedTx,// keep cache in sync after create/delete
     generateRandom: generateRandom,
     createTransaction: createTransaction,
     deleteTransaction: deleteTransaction,

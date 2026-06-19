@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee — Transactions</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="./config.js?v=9"></script>
-  <script src="./api.js?v=9"></script>
+  <script src="./config.js?v=12"></script>
+  <script src="./api.js?v=12"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -28,7 +28,6 @@
     }
 
     *{ box-sizing:border-box; }
-    html{ background:var(--bg); }
     html,body{ margin:0; }
 
     body{
@@ -37,8 +36,6 @@
       color:var(--text);
       padding:14px 16px 32px;
       min-height:100vh;
-      /* Center the content on wide desktop screens (no effect on mobile) */
-      max-width:1440px; margin-inline:auto;
       -webkit-font-smoothing:antialiased;
       text-rendering:optimizeLegibility;
     }
@@ -443,27 +440,27 @@
       `).join('');
     }
 
-    // Silently fetch from the backend, then paint the real table once — no
-    // intermediate empty flash. Falls back to a clear status message.
-    async function fetchAndRender(){
+    // Silently reconcile against the backend. We've already painted from cache,
+    // so we only touch the DOM if the fetched list actually DIFFERS — no flash,
+    // no jump when nothing changed (which is the normal tab-switch case).
+    async function reconcile(){
       if (!Lycee.configured){
-        loaded = true;
-        statusMode = 'cfg';
-        document.getElementById('countBadge').textContent = '0';
-        setStatus('🔌','cfg.title','cfg.text', false);
+        if (!loaded){ loaded = true; statusMode = 'cfg'; setStatus('🔌','cfg.title','cfg.text', false); }
         return;
       }
       try {
-        TX = (await Lycee.getTransactions()) || [];
+        const fresh = (await Lycee.getTransactions()) || [];
+        // Re-render only if this is the first paint (no cache) or data differs.
+        const changed = !loaded || JSON.stringify(fresh) !== JSON.stringify(TX);
+        TX = fresh;
         statusMode = null;
         loaded = true;
-        render();
+        if (changed) render();
       } catch(e){
         console.error(e);
-        loaded = true;
-        statusMode = 'err';
-        document.getElementById('countBadge').textContent = '0';
-        setStatus('⚠️','err.title','err.text', false);
+        // Keep whatever we already showed from cache; show the error state only
+        // if we truly have nothing to display.
+        if (!loaded){ loaded = true; statusMode = 'err'; setStatus('⚠️','err.title','err.text', false); }
       }
     }
 
@@ -476,6 +473,7 @@
       try {
         await Lycee.deleteTransaction(id);
         TX = TX.filter(tx => String(tx.id) !== String(id));
+        Lycee.setCachedTransactions(TX); // keep the shared cache in sync
         haptic('warning');
         render();
       } catch(err){ console.error(err); btn.disabled = false; showToast(t('toast.error')); }
@@ -487,6 +485,7 @@
         try {
           await Lycee.clearTransactions();
           TX = [];
+          Lycee.setCachedTransactions(TX); // keep the shared cache in sync
           haptic('success');
           render();
           showToast(t('toast.cleared'));
@@ -496,9 +495,12 @@
 
     /* ---------------- Init ---------------- */
     applyI18n();
+    // Paint instantly from the shared cache so the table + badge don't flash.
+    const cached = Lycee.cachedTransactions();
+    if (cached){ TX = cached; loaded = true; render(); }
     (async () => {
       try { await Lycee.ensureUser(); } catch(e){ console.error(e); }
-      fetchAndRender();
+      reconcile();
     })();
   </script>
 </body>

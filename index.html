@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee — New transaction</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="./config.js?v=9"></script>
-  <script src="./api.js?v=9"></script>
+  <script src="./config.js?v=12"></script>
+  <script src="./api.js?v=12"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -29,7 +29,6 @@
     }
 
     *{ box-sizing:border-box; }
-    html{ background:var(--bg); }
     html,body{ margin:0; }
 
     body{
@@ -38,8 +37,6 @@
       color:var(--text);
       padding:14px 16px 32px;
       min-height:100vh;
-      /* Center the content on wide desktop screens (no effect on mobile) */
-      max-width:1440px; margin-inline:auto;
       -webkit-font-smoothing:antialiased;
       text-rendering:optimizeLegibility;
     }
@@ -107,6 +104,8 @@
     .tab.active .badge{ background:rgba(255,255,255,.28); color:#fff; }
 
     /* ---------- Card ---------- */
+    /* The form column is much narrower than the page; centered on wide screens. */
+    main{ max-width:460px; margin-inline:auto; }
     .card{
       background:var(--card_bg); border:1px solid var(--border);
       border-radius:20px; padding:18px;

@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee — Google Sheet</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="./config.js?v=9"></script>
-  <script src="./api.js?v=9"></script>
+  <script src="./config.js?v=12"></script>
+  <script src="./api.js?v=12"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -28,7 +28,6 @@
     }
 
     *{ box-sizing:border-box; }
-    html{ background:var(--bg); }
     html,body{ margin:0; }
 
     /* Sheet page fills the viewport so the embed can take all available space */
@@ -39,8 +38,6 @@
       padding:14px 16px 16px;
       height:100vh; height:100dvh;
       display:flex; flex-direction:column;
-      /* Center the content on wide desktop screens (no effect on mobile) */
-      max-width:1440px; margin-inline:auto;
       -webkit-font-smoothing:antialiased;
       text-rendering:optimizeLegibility;
     }
@@ -293,22 +290,27 @@
       stateBox.style.display = 'none';
     }
 
+    // HARD RULE: one Google Sheet per user.
+    // GET first → if the user already has a sheet, embed it (never POST).
+    // Only when there is none do we POST once to create it, then embed the result.
     async function loadSheet(){
       showLoading();
       if (!Lycee.configured) return; // stay on the loading screen until configured
       try {
-        // Reuse the existing published sheet if there is one (created only once).
-        const [sheetRes, txs] = await Promise.all([Lycee.getSheetUrl(), Lycee.getTransactions()]);
-        document.getElementById('countBadge').textContent = (txs || []).length;
-
+        // 1) GET first — reuse the existing sheet if there is one.
+        const sheetRes = await Lycee.getSheetUrl();
         let url = sheetRes && sheetRes.url;
-        if (url){ showFrame(url); return; }              // already created → just embed it
+        if (url){ showFrame(url); return; }
 
-        // No sheet yet: create one ONCE, but only if there's something to publish.
+        // 2) None yet → only create if there's something to publish.
+        const txs = await Lycee.getTransactions();
+        document.getElementById('countBadge').textContent = (txs || []).length;
         if (!txs || !txs.length){ showNoTx(); return; }
-        const res = await Lycee.createSheet();           // backend stores the URL for next time
+
+        // 3) POST once; when it's done, embed the created sheet.
+        const res = await Lycee.createSheet();
         url = res && res.url;
-        if (url) showFrame(url); else showLoading();      // keep waiting on failure
+        if (url) showFrame(url); else showLoading(); // keep waiting on failure
       } catch(e){ console.error(e); showLoading(); }
     }
 
