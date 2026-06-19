@@ -105,6 +105,60 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', preserveHashOnLinks);
   else preserveHashOnLinks();
 
+  // --- on-screen debug panel ----------------------------------------------
+  // Mobile Telegram has no DevTools, so dump the raw launch data on the page.
+  // Enable with LYCEE_CONFIG.DEBUG = true or ?debug=1; auto-shows when no id.
+  function buildDebugReport() {
+    var hash = location.hash || '';
+    var hasTgData = hash.indexOf('tgWebAppData') !== -1;
+    var initData = (tg && tg.initData) || '';
+    var unsafe = (tg && tg.initDataUnsafe) || {};
+    var lines = [
+      'window.Telegram   : ' + (!!window.Telegram),
+      'Telegram.WebApp   : ' + (!!(window.Telegram && window.Telegram.WebApp)),
+      'tg.platform       : ' + (tg && tg.platform),     // "unknown" ⇒ NOT opened in Telegram
+      'tg.version        : ' + (tg && tg.version),
+      'tg.initData len   : ' + initData.length + (initData.length ? '' : '  ⇐ EMPTY ⇒ not a Web App launch'),
+      'initDataUnsafe    : ' + (function(){ try { return JSON.stringify(unsafe); } catch(e){ return '(unstringifiable)'; } }()),
+      'user.id (unsafe)  : ' + (unsafe.user && unsafe.user.id),
+      'hash has tgWebAppData : ' + hasTgData,
+      'location.href     : ' + location.href,
+      'stored lycee_uid  : ' + lsGet(UID_KEY),
+      '',
+      '=> resolved userId: ' + userId + '   (source: ' + userSrc + ')'
+    ];
+    return lines.join('\n');
+  }
+
+  function renderDebugPanel() {
+    if (document.getElementById('lycee-debug')) return;
+    var box = document.createElement('div');
+    box.id = 'lycee-debug';
+    box.setAttribute('style', [
+      'position:fixed','left:8px','right:8px','bottom:8px','z-index:99999',
+      'max-height:55vh','overflow:auto','background:rgba(0,0,0,.92)','color:#0f0',
+      'font:12px/1.45 ui-monospace,Menlo,Consolas,monospace','padding:12px 12px 14px',
+      'border:1px solid #0a0','border-radius:12px','white-space:pre-wrap','word-break:break-all'
+    ].join(';'));
+    var pre = document.createElement('div');
+    pre.textContent = buildDebugReport();
+    var close = document.createElement('button');
+    close.textContent = '✕ close debug';
+    close.setAttribute('style', 'margin-top:10px;width:100%;padding:8px;background:#0a0;color:#000;border:0;border-radius:8px;font-weight:700;');
+    close.onclick = function(){ box.remove(); };
+    box.appendChild(pre);
+    box.appendChild(close);
+    document.body.appendChild(box);
+  }
+
+  var wantDebug = !!cfg.DEBUG ||
+    new URLSearchParams(location.search).get('debug') === '1' ||
+    userSrc === 'none';
+  if (wantDebug) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderDebugPanel);
+    else renderDebugPanel();
+  }
+
   // core fetch: adds base, JSON + ngrok headers, throws on non-2xx
   async function req(path, opts) {
     opts = opts || {};
