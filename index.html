@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee — New transaction</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="./config.js?v=6"></script>
-  <script src="./api.js?v=6"></script>
+  <script src="./config.js?v=9"></script>
+  <script src="./api.js?v=9"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -29,6 +29,7 @@
     }
 
     *{ box-sizing:border-box; }
+    html{ background:var(--bg); }
     html,body{ margin:0; }
 
     body{
@@ -37,6 +38,8 @@
       color:var(--text);
       padding:14px 16px 32px;
       min-height:100vh;
+      /* Center the content on wide desktop screens (no effect on mobile) */
+      max-width:1440px; margin-inline:auto;
       -webkit-font-smoothing:antialiased;
       text-rendering:optimizeLegibility;
     }
@@ -302,7 +305,7 @@
         'ph.date':'📅 Select date', 'ph.comment':'What was it for?', 'ph.select':'Select…',
         'btn.create':'Create transaction', 'btn.random':'Generate random data',
         'toast.created':'Transaction added', 'toast.generated':'Random transactions generated',
-        'toast.sheet':'Updating Google Sheet…', 'toast.error':'Something went wrong',
+        'toast.error':'Something went wrong',
         'alert.fill':'Please fill in date, total, type, category and counterparty.',
         'hint.config':'⚠ Set API_BASE in config.js',
         'theme':'Theme'
@@ -316,7 +319,7 @@
         'ph.date':'📅 Оберіть дату', 'ph.comment':'За що?', 'ph.select':'Оберіть…',
         'btn.create':'Створити транзакцію', 'btn.random':'Згенерувати дані',
         'toast.created':'Транзакцію додано', 'toast.generated':'Випадкові транзакції створено',
-        'toast.sheet':'Оновлюємо Google-таблицю…', 'toast.error':'Сталася помилка',
+        'toast.error':'Сталася помилка',
         'alert.fill':'Вкажіть дату, суму, тип, категорію та контрагента.',
         'hint.config':'⚠ Вкажіть API_BASE у config.js',
         'theme':'Тема'
@@ -502,13 +505,9 @@
       try {
         await Lycee.generateRandom(count);
         haptic('success');
-        // Rebuild the published Google Sheet so it reflects the just-generated rows.
-        // Non-fatal: the transactions are already persisted, so a sheet failure
-        // shouldn't block the user — it'll just be rebuilt next time.
-        showToast(t('toast.sheet'));
-        try { await Lycee.createSheet(); } catch(err){ console.error('[Lycee] sheet rebuild failed', err); }
         showToast(t('toast.generated'));
-        // Generated rows are persisted on the backend → show them on the Transactions tab
+        // Rows are persisted on the backend → show them on the Transactions tab.
+        // The Google Sheet is (re)built later on the Sheet tab, behind its loading screen.
         location.href = './table.html';
       } catch(e){ console.error(e); haptic('error'); notify(t('toast.error')); randomBtn.disabled = false; }
     };

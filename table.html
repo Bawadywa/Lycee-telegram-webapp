@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee — Transactions</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="./config.js?v=6"></script>
-  <script src="./api.js?v=6"></script>
+  <script src="./config.js?v=9"></script>
+  <script src="./api.js?v=9"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -28,6 +28,7 @@
     }
 
     *{ box-sizing:border-box; }
+    html{ background:var(--bg); }
     html,body{ margin:0; }
 
     body{
@@ -36,6 +37,8 @@
       color:var(--text);
       padding:14px 16px 32px;
       min-height:100vh;
+      /* Center the content on wide desktop screens (no effect on mobile) */
+      max-width:1440px; margin-inline:auto;
       -webkit-font-smoothing:antialiased;
       text-rendering:optimizeLegibility;
     }
@@ -299,6 +302,8 @@
       document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
       document.documentElement.lang = lang;
       document.getElementById('langLabel').textContent = (lang === 'uk') ? 'UA' : 'EN';
+      // Don't paint table/empty until the first fetch has resolved (avoids the flash-then-jump).
+      if (!loaded) return;
       // re-render so dates / numbers / names re-localize (keep the current status message if any)
       if (statusMode === 'cfg') setStatus('🔌','cfg.title','cfg.text', false);
       else if (statusMode === 'err') setStatus('⚠️','err.title','err.text', false);
@@ -371,6 +376,9 @@
     /* ---------------- State (backend is the source of truth) ---------------- */
     let TX = [];               // last fetched transactions (cached for re-render on lang toggle)
     let statusMode = null;     // null | 'cfg' | 'err' — which status message the empty box shows
+    let loaded = false;        // becomes true after the first fetch resolves; until then we
+                               // render NOTHING (content + empty both hidden) so the page doesn't
+                               // flash an empty state and then jump to the real table
 
     /* ---------------- Formatting ---------------- */
     function fmtNum(n){
@@ -435,9 +443,11 @@
       `).join('');
     }
 
-    // Fetch from the backend, then render. Falls back to a clear status message.
+    // Silently fetch from the backend, then paint the real table once — no
+    // intermediate empty flash. Falls back to a clear status message.
     async function fetchAndRender(){
       if (!Lycee.configured){
+        loaded = true;
         statusMode = 'cfg';
         document.getElementById('countBadge').textContent = '0';
         setStatus('🔌','cfg.title','cfg.text', false);
@@ -446,9 +456,11 @@
       try {
         TX = (await Lycee.getTransactions()) || [];
         statusMode = null;
+        loaded = true;
         render();
       } catch(e){
         console.error(e);
+        loaded = true;
         statusMode = 'err';
         document.getElementById('countBadge').textContent = '0';
         setStatus('⚠️','err.title','err.text', false);
