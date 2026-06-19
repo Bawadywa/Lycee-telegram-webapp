@@ -16,6 +16,6 @@
                 You can also override per-open with a ?uid=123 query param.
    ============================================================================ */
 window.LYCEE_CONFIG = {
-  API_BASE: '',
+  API_BASE: 'https://dominion-strenuous-wrongful.ngrok-free.dev',
   DEV_USER_ID: 123456789
 };
