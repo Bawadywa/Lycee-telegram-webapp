@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee — Google Sheet</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="./config.js"></script>
+  <script src="./api.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -109,6 +111,24 @@
       flex:1 1 auto; width:100%; min-height:0;
       border:none; border-radius:14px; background:#fff;
     }
+
+    /* Empty / status state shown until a sheet URL is available */
+    .sheet-empty{
+      flex:1 1 auto; min-height:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; text-align:center; gap:10px; padding:24px;
+    }
+    .sheet-empty .empty-emoji{ font-size:44px; }
+    .sheet-empty h3{ font-size:18px; font-weight:800; }
+    .sheet-empty p{ color:var(--hint); font-size:14px; margin:0; max-width:320px; }
+    .sheet-empty .btn-gradient{
+      width:auto; margin-top:8px; padding:13px 26px; border:none; border-radius:999px;
+      background:var(--grad); color:#fff; font-family:inherit; font-weight:800; font-size:15px; cursor:pointer;
+      box-shadow:0 8px 24px rgba(45,212,191,.18);
+    }
+    .sheet-empty .btn-gradient:disabled{ opacity:.6; cursor:default; }
+    .icon-btn:disabled{ opacity:.6; cursor:default; }
+    .spin{ animation:spin 1s linear infinite; }
+    @keyframes spin{ to{ transform:rotate(360deg); } }
   </style>
 </head>
 <body data-scheme="dark">
@@ -122,6 +142,9 @@
       <button class="icon-btn desktop-only" id="fsBtn" type="button" title="Fullscreen">
         <svg id="fsExpand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
         <svg id="fsCompress" style="display:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
+      </button>
+      <button class="icon-btn" id="refreshBtn" type="button" title="Refresh sheet" style="display:none">
+        <svg id="refreshIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
       </button>
     </div>
   </header>
@@ -137,11 +160,14 @@
 
   <main>
     <section class="sheet-card">
-      <iframe
-        class="sheet-frame"
-        src="https://docs.google.com/spreadsheets/d/e/2PACX-1vSimmJb2DDSYCNejUNi1xzbJj_F8bz72Mm5-EPnuY70WGwb438MXG-Xe3ahjtshwzS5eF0iJo2Bwj2y/pubhtml?widget=true&amp;headers=false"
-        title="Lycee Google Sheet"
-        loading="lazy"></iframe>
+      <!-- src is set at runtime from the backend (GET/POST /google_sheet) -->
+      <iframe id="sheetFrame" class="sheet-frame" title="Lycee Google Sheet" loading="lazy" style="display:none"></iframe>
+      <div id="sheetEmpty" class="sheet-empty">
+        <div class="empty-emoji" id="sheetEmoji">📊</div>
+        <h3 id="sheetTitle" data-i18n="sheet.empty.title">No sheet yet</h3>
+        <p id="sheetText" data-i18n="sheet.empty.text">Generate a published Google Sheet from your transactions.</p>
+        <button class="btn-gradient" id="genBtn" type="button" data-i18n="sheet.generate">Generate sheet</button>
+      </div>
     </section>
   </main>
 
@@ -156,8 +182,30 @@
 
     /* ---------------- i18n ---------------- */
     const dict = {
-      en:{ 'tab.new':'New', 'tab.list':'Transactions', 'tab.sheet':'Google Sheet', 'theme':'Theme' },
-      uk:{ 'tab.new':'Нова', 'tab.list':'Транзакції', 'tab.sheet':'Google Sheet', 'theme':'Тема' }
+      en:{
+        'tab.new':'New', 'tab.list':'Transactions', 'tab.sheet':'Google Sheet', 'theme':'Theme',
+        'sheet.empty.title':'No sheet yet',
+        'sheet.empty.text':'Generate a published Google Sheet from your transactions.',
+        'sheet.generate':'Generate sheet',
+        'sheet.loading.title':'Generating…',
+        'sheet.loading.text':'Building your published Google Sheet — this can take a moment.',
+        'cfg.title':'Backend not configured',
+        'cfg.text':'Set API_BASE in config.js to load your sheet.',
+        'err.title':"Couldn't load the sheet",
+        'err.text':'Check that the backend is running and reachable, then try again.'
+      },
+      uk:{
+        'tab.new':'Нова', 'tab.list':'Транзакції', 'tab.sheet':'Google Sheet', 'theme':'Тема',
+        'sheet.empty.title':'Таблиці ще немає',
+        'sheet.empty.text':'Згенеруйте опубліковану Google-таблицю з ваших транзакцій.',
+        'sheet.generate':'Згенерувати таблицю',
+        'sheet.loading.title':'Генеруємо…',
+        'sheet.loading.text':'Створюємо вашу опубліковану Google-таблицю — це може зайняти трохи часу.',
+        'cfg.title':'Бекенд не налаштовано',
+        'cfg.text':'Вкажіть API_BASE у config.js, щоб завантажити таблицю.',
+        'err.title':'Не вдалося завантажити таблицю',
+        'err.text':'Перевірте, що бекенд запущено та доступний, і спробуйте ще раз.'
+      }
     };
     let lang = localStorage.getItem('lycee_lang')
       || (((tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || '').startsWith('uk') ? 'uk' : 'en');
@@ -167,6 +215,9 @@
       document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
       document.documentElement.lang = lang;
       document.getElementById('langLabel').textContent = (lang === 'uk') ? 'UA' : 'EN';
+      // restore the correct status message (the generic loop above resets it to the default)
+      if (typeof applyEmptyText === 'function' &&
+          document.getElementById('sheetEmpty').style.display !== 'none') applyEmptyText();
     }
 
     document.getElementById('langBtn').onclick = () => {
@@ -232,13 +283,88 @@
     if (typeof tg.onEvent === 'function') tg.onEvent('fullscreenChanged', updateFsIcon);
     updateFsIcon();
 
-    /* ---------------- Transactions badge ---------------- */
-    const KEY = 'lycee_tx';
-    const loadTx = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } };
-    document.getElementById('countBadge').textContent = loadTx().length;
+    /* ---------------- Google Sheet (URL comes from the backend) ---------------- */
+    const frame       = document.getElementById('sheetFrame');
+    const emptyBox    = document.getElementById('sheetEmpty');
+    const sheetEmoji  = document.getElementById('sheetEmoji');
+    const sheetTitle  = document.getElementById('sheetTitle');
+    const sheetText   = document.getElementById('sheetText');
+    const genBtn      = document.getElementById('genBtn');
+    const refreshBtn  = document.getElementById('refreshBtn');
+    const refreshIcon = document.getElementById('refreshIcon');
+
+    let statusMode = 'empty'; // 'empty' | 'cfg' | 'err' | 'loading' (only meaningful while emptyBox is shown)
+
+    function applyEmptyText(){
+      const map = {
+        empty:   { emoji:'📊', title:'sheet.empty.title',   text:'sheet.empty.text',   showBtn:true  },
+        loading: { emoji:'⏳', title:'sheet.loading.title', text:'sheet.loading.text', showBtn:false },
+        cfg:     { emoji:'🔌', title:'cfg.title',           text:'cfg.text',           showBtn:false },
+        err:     { emoji:'⚠️', title:'err.title',           text:'err.text',           showBtn:true  }
+      };
+      const m = map[statusMode] || map.empty;
+      sheetEmoji.textContent = m.emoji;
+      sheetTitle.textContent = t(m.title);
+      sheetText.textContent  = t(m.text);
+      genBtn.style.display   = m.showBtn ? '' : 'none';
+    }
+
+    function showEmpty(mode){
+      statusMode = mode;
+      frame.style.display = 'none';
+      emptyBox.style.display = 'flex';
+      refreshBtn.style.display = 'none';
+      applyEmptyText();
+    }
+
+    function showFrame(url){
+      frame.src = url;
+      frame.style.display = '';
+      emptyBox.style.display = 'none';
+      refreshBtn.style.display = ''; // allow regenerating once a sheet exists
+    }
+
+    async function loadSheet(){
+      if (!Lycee.configured){ showEmpty('cfg'); return; }
+      try {
+        const res = await Lycee.getSheetUrl();
+        const url = res && res.url;
+        if (url) showFrame(url); else showEmpty('empty');
+      } catch(e){ console.error(e); showEmpty('err'); }
+    }
+
+    async function generate(){
+      if (!Lycee.configured){ showEmpty('cfg'); return; }
+      const hadSheet = frame.style.display !== 'none';
+      refreshBtn.disabled = true;
+      refreshIcon.classList.add('spin');
+      if (!hadSheet) showEmpty('loading');
+      try {
+        const res = await Lycee.createSheet();
+        const url = res && res.url;
+        if (url) showFrame(url); else showEmpty('err');
+      } catch(e){ console.error(e); showEmpty('err'); }
+      finally { refreshBtn.disabled = false; refreshIcon.classList.remove('spin'); }
+    }
+
+    genBtn.onclick = generate;
+    refreshBtn.onclick = generate;
+
+    async function updateBadge(){
+      if (!Lycee.configured) return;
+      try {
+        const tx = await Lycee.getTransactions();
+        document.getElementById('countBadge').textContent = (tx || []).length;
+      } catch(e){ /* ignore badge errors */ }
+    }
 
     /* ---------------- Init ---------------- */
     applyI18n();
+    (async () => {
+      try { await Lycee.ensureUser(); } catch(e){ console.error(e); }
+      updateBadge();
+      loadSheet();
+    })();
   </script>
 </body>
 </html>

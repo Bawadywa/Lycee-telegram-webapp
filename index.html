@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee — New transaction</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="./config.js"></script>
+  <script src="./api.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -237,11 +239,14 @@
             <option value="USD">USD</option>
             <option value="EUR">EUR</option>
             <option value="UAH">UAH</option>
-            <option value="GBP">GBP</option>
-            <option value="PLN">PLN</option>
           </select>
         </div>
       </div>
+
+      <label data-i18n="field.type">Type</label>
+      <select id="type">
+        <option value="" disabled selected data-i18n="ph.select">Select…</option>
+      </select>
 
       <label data-i18n="field.category">Category</label>
       <select id="category">
@@ -254,9 +259,18 @@
       </select>
 
       <label data-i18n="field.comment">Comment</label>
-      <textarea id="comment" rows="3" data-i18n-ph="ph.comment" placeholder="What was it for?"></textarea>
+      <textarea id="comment" rows="3" maxlength="40" data-i18n-ph="ph.comment" placeholder="What was it for?"></textarea>
 
       <button class="btn-gradient" id="createBtn" type="button" data-i18n="btn.create">Create transaction</button>
+
+      <label data-i18n="field.count">How many to generate</label>
+      <select id="count">
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="15">15</option>
+        <option value="20">20</option>
+        <option value="25">25</option>
+      </select>
       <button class="btn-ghost" id="randomBtn" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/></svg>
         <span data-i18n="btn.random">Generate random data</span>
@@ -282,23 +296,29 @@
       en:{
         'tab.new':'New', 'tab.list':'Transactions', 'tab.sheet':'Google Sheet',
         'form.title':'New transaction', 'form.subtitle':'Add an entry to your ledger.',
-        'field.date':'Date', 'field.total':'Total', 'field.currency':'Currency',
+        'field.date':'Date', 'field.total':'Total', 'field.currency':'Currency', 'field.type':'Type',
         'field.category':'Category', 'field.counterparty':'Counterparty', 'field.comment':'Comment',
+        'field.count':'How many to generate',
         'ph.date':'📅 Select date', 'ph.comment':'What was it for?', 'ph.select':'Select…',
         'btn.create':'Create transaction', 'btn.random':'Generate random data',
-        'toast.created':'Transaction added', 'toast.generated':'5 transactions generated',
-        'alert.fill':'Please fill in date, total, category and counterparty.',
+        'toast.created':'Transaction added', 'toast.generated':'Random transactions generated',
+        'toast.error':'Something went wrong',
+        'alert.fill':'Please fill in date, total, type, category and counterparty.',
+        'hint.config':'⚠ Set API_BASE in config.js',
         'theme':'Theme'
       },
       uk:{
         'tab.new':'Нова', 'tab.list':'Транзакції', 'tab.sheet':'Google Sheet',
         'form.title':'Нова транзакція', 'form.subtitle':'Додайте запис до вашого журналу.',
-        'field.date':'Дата', 'field.total':'Сума', 'field.currency':'Валюта',
+        'field.date':'Дата', 'field.total':'Сума', 'field.currency':'Валюта', 'field.type':'Тип',
         'field.category':'Категорія', 'field.counterparty':'Контрагент', 'field.comment':'Коментар',
+        'field.count':'Скільки згенерувати',
         'ph.date':'📅 Оберіть дату', 'ph.comment':'За що?', 'ph.select':'Оберіть…',
         'btn.create':'Створити транзакцію', 'btn.random':'Згенерувати дані',
-        'toast.created':'Транзакцію додано', 'toast.generated':'Згенеровано 5 транзакцій',
-        'alert.fill':'Вкажіть дату, суму, категорію та контрагента.',
+        'toast.created':'Транзакцію додано', 'toast.generated':'Випадкові транзакції створено',
+        'toast.error':'Сталася помилка',
+        'alert.fill':'Вкажіть дату, суму, тип, категорію та контрагента.',
+        'hint.config':'⚠ Вкажіть API_BASE у config.js',
         'theme':'Тема'
       }
     };
@@ -311,6 +331,7 @@
       document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
       document.documentElement.lang = lang;
       document.getElementById('langLabel').textContent = (lang === 'uk') ? 'UA' : 'EN';
+      if (typeof refillSelects === 'function') refillSelects();
       updateThemeHint();
     }
 
@@ -382,92 +403,59 @@
     if (typeof tg.onEvent === 'function') tg.onEvent('fullscreenChanged', updateFsIcon);
     updateFsIcon();
 
-    /* ---------------- Storage ---------------- */
-    const KEY = 'lycee_tx';
-    const loadTx = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } };
-    const saveTx = (a) => localStorage.setItem(KEY, JSON.stringify(a));
-    const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(16).slice(2));
-    const updateBadge = () => { document.getElementById('countBadge').textContent = loadTx().length; };
-    const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-
-    /* ---------------- Dropdown options (category + counterparty) ----------------
-       Options are loaded from the API on page load. Point API_BASE at your backend
-       origin to fetch from <API_BASE>/api/categories and <API_BASE>/api/counterparties.
-       Each endpoint should return either ["Name", ...] or [{ "value": "...", "label": "..." }, ...]
-       ({ id, name } is also accepted). Leave API_BASE empty to use the fallback lists below. */
-    const API_BASE = '';
-    const FALLBACK_CATEGORIES = ['Sales','Services','Salary','Rent','Utilities','Marketing','Software','Travel','Taxes','Other'];
-    const FALLBACK_COUNTERPARTIES = ['Acme Corp','Globex','Initech','Umbrella Co','Stark Industries','Wayne Enterprises','Soylent','Hooli'];
-
-    const catSel = document.getElementById('category');
-    const cpSel  = document.getElementById('counterparty');
-    let CATEGORIES = [];      // [{ value, label }]
-    let COUNTERPARTIES = [];
-
-    function normOptions(data){
-      const list = Array.isArray(data) ? data : (Array.isArray(data && data.items) ? data.items : []);
-      return list
-        .map(x => (typeof x === 'string' || typeof x === 'number')
-          ? { value: String(x), label: String(x) }
-          : { value: String(x.value ?? x.id ?? x.name ?? ''), label: String(x.label ?? x.name ?? x.value ?? x.id ?? '') })
-        .filter(o => o.value);
-    }
-
-    async function fetchOptions(path, fallback){
-      if (API_BASE){
-        try {
-          const res = await fetch(API_BASE.replace(/\/$/, '') + path, { headers:{ 'Accept':'application/json' } });
-          if (res.ok){
-            const opts = normOptions(await res.json());
-            if (opts.length) return opts;
-          }
-        } catch(e){ /* network/parse error → fall back below */ }
-      }
-      return fallback.map(x => ({ value: x, label: x }));
-    }
-
-    function fillSelect(sel, options){
-      const ph = `<option value="" disabled selected data-i18n="ph.select">${esc(t('ph.select'))}</option>`;
-      sel.innerHTML = ph + options.map(o => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('');
-    }
-
-    async function loadOptions(){
-      [CATEGORIES, COUNTERPARTIES] = await Promise.all([
-        fetchOptions('/api/categories', FALLBACK_CATEGORIES),
-        fetchOptions('/api/counterparties', FALLBACK_COUNTERPARTIES)
-      ]);
-      fillSelect(catSel, CATEGORIES);
-      fillSelect(cpSel, COUNTERPARTIES);
-    }
-
-    /* ---------------- Random data ---------------- */
-    const CURRENCIES = ['USD','EUR','UAH','GBP','PLN'];
-    const COMMENTS = ['Client payment','Office supplies','Subscription','Consulting','Hardware',
-                      'Marketing','Travel','Refund','Software license','Logistics'];
-    const ri = (a,b) => Math.floor(Math.random() * (b - a + 1)) + a;
-    const pick = (arr) => arr.length ? arr[ri(0, arr.length - 1)] : null;
-    function randomTx(){
-      const d = new Date(); d.setDate(d.getDate() - ri(0,60));
-      const cat = pick(CATEGORIES), cp = pick(COUNTERPARTIES);
-      return {
-        id: uid(),
-        date: d.toISOString().slice(0,10),
-        total: ri(50, 9999) + Math.round(Math.random()*100)/100,
-        currency: CURRENCIES[ri(0, CURRENCIES.length - 1)],
-        category: cat ? cat.value : '',
-        counterparty: cp ? cp.value : '',
-        comment: COMMENTS[ri(0, COMMENTS.length - 1)]
-      };
-    }
-
     /* ---------------- Helpers ---------------- */
+    const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
     function haptic(type){ try { tg.HapticFeedback && tg.HapticFeedback.notificationOccurred(type); } catch(e){} }
+    function notify(msg){ if (typeof tg.showAlert === 'function') tg.showAlert(msg); else alert(msg); }
     let toastTimer;
     function showToast(msg){
       const el = document.getElementById('toast');
       el.textContent = msg; el.classList.add('show');
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+    }
+    function showConfigHint(){
+      const el = document.getElementById('themeHint');
+      if (el) el.textContent = t('hint.config');
+    }
+
+    /* ---------------- Backend-driven dropdowns (Type / Category / Counterparty) ----------------
+       Options come from the FastAPI backend (see config.js / api.js). Values are the
+       backend row ids; labels are localized via Lycee.pickName. */
+    const typeSel = document.getElementById('type');
+    const catSel  = document.getElementById('category');
+    const cpSel   = document.getElementById('counterparty');
+    let TYPES = [], CATS = [], CPS = [];
+
+    function fillSelect(sel, items){
+      const ph = `<option value="" disabled selected>${esc(t('ph.select'))}</option>`;
+      sel.innerHTML = ph + items.map(o => `<option value="${esc(o.id)}">${esc(Lycee.pickName(o, lang))}</option>`).join('');
+    }
+    function refillSelects(){
+      fillSelect(typeSel, TYPES);
+      fillSelect(catSel, CATS);
+      fillSelect(cpSel, CPS);
+    }
+
+    async function loadOptions(){
+      if (!Lycee.configured){ showConfigHint(); return; }
+      try {
+        const [types, cats, cps] = await Promise.all([
+          Lycee.getTransactionTypes(),
+          Lycee.getCategories(),
+          Lycee.getCounterparties()
+        ]);
+        TYPES = types || []; CATS = cats || []; CPS = cps || [];
+        refillSelects();
+      } catch(e){ console.error(e); showToast(t('toast.error')); }
+    }
+
+    async function updateBadge(){
+      if (!Lycee.configured) return;
+      try {
+        const tx = await Lycee.getTransactions();
+        document.getElementById('countBadge').textContent = (tx || []).length;
+      } catch(e){ /* ignore badge errors */ }
     }
 
     /* ---------------- Form actions ---------------- */
@@ -477,44 +465,57 @@
     dateInput.addEventListener('input', syncDate);
     dateInput.addEventListener('change', syncDate);
 
-    document.getElementById('createBtn').onclick = () => {
+    const createBtn = document.getElementById('createBtn');
+    createBtn.onclick = async () => {
       const date = dateInput.value;
       const total = parseFloat(document.getElementById('total').value);
       const currency = document.getElementById('currency').value;
-      const category = catSel.value;
-      const counterparty = cpSel.value;
+      const type_id = parseInt(typeSel.value, 10);
+      const category_id = parseInt(catSel.value, 10);
+      const counterparty_id = parseInt(cpSel.value, 10);
       const comment = document.getElementById('comment').value.trim();
 
-      if (!date || isNaN(total) || total <= 0 || !category || !counterparty){
-        if (typeof tg.showAlert === 'function') tg.showAlert(t('alert.fill')); else alert(t('alert.fill'));
+      if (!date || isNaN(total) || total <= 0 || !type_id || !category_id || !counterparty_id){
+        notify(t('alert.fill'));
         return;
       }
-      const txs = loadTx();
-      txs.unshift({ id: uid(), date, total, currency, category, counterparty, comment });
-      saveTx(txs);
-      haptic('success');
-      document.getElementById('total').value = '';
-      document.getElementById('comment').value = '';
-      catSel.selectedIndex = 0;
-      cpSel.selectedIndex = 0;
-      updateBadge();
-      showToast(t('toast.created'));
+      if (!Lycee.configured){ notify(t('hint.config')); return; }
+
+      createBtn.disabled = true;
+      try {
+        await Lycee.createTransaction({ occured_at: date, total, currency, type_id, category_id, counterparty_id, comment });
+        haptic('success');
+        document.getElementById('total').value = '';
+        document.getElementById('comment').value = '';
+        typeSel.selectedIndex = 0; catSel.selectedIndex = 0; cpSel.selectedIndex = 0;
+        updateBadge();
+        showToast(t('toast.created'));
+      } catch(e){ console.error(e); haptic('error'); notify(t('toast.error')); }
+      finally { createBtn.disabled = false; }
     };
 
-    document.getElementById('randomBtn').onclick = () => {
-      const txs = loadTx();
-      for (let i = 0; i < 5; i++) txs.unshift(randomTx());
-      saveTx(txs);
-      haptic('success');
-      updateBadge();
-      showToast(t('toast.generated'));
+    const randomBtn = document.getElementById('randomBtn');
+    randomBtn.onclick = async () => {
+      if (!Lycee.configured){ notify(t('hint.config')); return; }
+      const count = parseInt(document.getElementById('count').value, 10) || 5;
+      randomBtn.disabled = true;
+      try {
+        await Lycee.generateRandom(count);
+        haptic('success');
+        showToast(t('toast.generated'));
+        // Generated rows are persisted on the backend → show them on the Transactions tab
+        location.href = './table.html';
+      } catch(e){ console.error(e); haptic('error'); notify(t('toast.error')); randomBtn.disabled = false; }
     };
 
     /* ---------------- Init ---------------- */
     applyI18n();
-    updateBadge();
     syncDate();
-    loadOptions();
+    (async () => {
+      try { await Lycee.ensureUser(); } catch(e){ console.error(e); }
+      await loadOptions();
+      updateBadge();
+    })();
   </script>
 </body>
 </html>
