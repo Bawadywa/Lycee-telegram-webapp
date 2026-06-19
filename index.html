@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="./config.js?v=20"></script>
-  <script src="./api.js?v=20"></script>
+  <script src="./config.js?v=21"></script>
+  <script src="./api.js?v=21"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -489,32 +489,24 @@
       applyI18n();
     };
 
-    /* ---------------- Theme ---------------- */
+    /* ---------------- Theme (FORCED DARK — ignores Telegram's theme) ---------------- */
     function applyTheme(){
-      const p = tg.themeParams || {};
-      const scheme = tg.colorScheme === 'light' ? 'light' : 'dark';
-      document.body.setAttribute('data-scheme', scheme);
+      // Always dark, regardless of Telegram's colorScheme / themeParams.
+      document.body.setAttribute('data-scheme', 'dark');
 
-      const bg          = p.bg_color          || (scheme === 'dark' ? '#0f0f10' : '#ffffff');
-      const text        = p.text_color        || (scheme === 'dark' ? '#ffffff' : '#111111');
-      const hint        = p.hint_color        || (scheme === 'dark' ? '#a1a1aa' : '#6b7280');
-      const button      = p.button_color      || '#2ea6ff';
-      const buttonText  = p.button_text_color || '#ffffff';
-      const secondaryBg = p.secondary_bg_color|| (scheme === 'dark' ? '#1c1c1e' : '#f3f4f6');
-
-      const card   = scheme === 'dark' ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.65)';
-      const border = scheme === 'dark' ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.10)';
-      const fieldBg= scheme === 'dark' ? 'rgba(255,255,255,.06)' : '#ffffff';
-      const fBorder= scheme === 'dark' ? 'rgba(255,255,255,.14)' : 'rgba(0,0,0,.15)';
-      const focus  = scheme === 'dark' ? 'rgba(46,212,191,.28)' : 'rgba(46,212,191,.35)';
-
+      const bg = '#0f0f10';
       const s = document.documentElement.style;
-      s.setProperty('--bg', bg); s.setProperty('--text', text); s.setProperty('--hint', hint);
-      s.setProperty('--button', button); s.setProperty('--button_text', buttonText);
-      s.setProperty('--secondary_bg', secondaryBg);
-      s.setProperty('--card_bg', card); s.setProperty('--border', border);
-      s.setProperty('--field_bg', fieldBg); s.setProperty('--field_border', fBorder);
-      s.setProperty('--field_focus', focus);
+      s.setProperty('--bg', bg);
+      s.setProperty('--text', '#ffffff');
+      s.setProperty('--hint', '#a1a1aa');
+      s.setProperty('--button', '#2ea6ff');
+      s.setProperty('--button_text', '#ffffff');
+      s.setProperty('--secondary_bg', '#1c1c1e');
+      s.setProperty('--card_bg', 'rgba(255,255,255,.05)');
+      s.setProperty('--border', 'rgba(255,255,255,.10)');
+      s.setProperty('--field_bg', 'rgba(255,255,255,.06)');
+      s.setProperty('--field_border', 'rgba(255,255,255,.14)');
+      s.setProperty('--field_focus', 'rgba(46,212,191,.28)');
 
       if (typeof tg.setBackgroundColor === 'function') { try { tg.setBackgroundColor(bg); } catch(e){} }
       if (typeof tg.setHeaderColor === 'function')     { try { tg.setHeaderColor(bg); } catch(e){} }
@@ -522,7 +514,7 @@
     }
     function updateThemeHint(){
       const el = document.getElementById('themeHint');
-      if (el) el.textContent = t('theme') + ': ' + (tg.colorScheme || 'dark');
+      if (el) el.textContent = t('theme') + ': dark';
     }
     applyTheme();
     if (typeof tg.onEvent === 'function') tg.onEvent('themeChanged', applyTheme);
