@@ -20,20 +20,49 @@
 
   var base = String(cfg.API_BASE || '').replace(/\/+$/, '');
 
-  // user id: the REAL Telegram user first, then ?uid= override, then dev fallback
+  // --- user id resolution -------------------------------------------------
+  // Telegram's signed launch data lives in the URL fragment (#tgWebAppData=…)
+  // and is ONLY present on the page Telegram opened (index.html). As soon as the
+  // user navigates to table.html / sheet.html the fragment is gone, so the real
+  // user would be lost and we'd fall back to the dev id (e.g. 123456789). To
+  // avoid that we persist the real Telegram id the first time we see it and
+  // reuse it on the fragment-less pages.
+  var UID_KEY = 'lycee_uid';
+  function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+  function lsSet(k,v){ try { localStorage.setItem(k, v); } catch(e){} }
+
   function resolveUserId() {
     var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
-    if (u && u.id) return Number(u.id);               // real Telegram user
+    if (u && u.id) {                                            // real Telegram user (launch page)
+      lsSet(UID_KEY, String(u.id));
+      return { id: Number(u.id), src: 'telegram' };
+    }
     var fromQuery = Number(new URLSearchParams(location.search).get('uid'));
-    if (fromQuery) return fromQuery;                  // browser/dev override (?uid=)
-    return Number(cfg.DEV_USER_ID) || 0;              // last-resort dev fallback
+    if (fromQuery) return { id: fromQuery, src: 'uid-param' };  // explicit testing override
+    var stored = Number(lsGet(UID_KEY));
+    if (stored) return { id: stored, src: 'stored-telegram' };  // reused after in-app navigation
+    return { id: Number(cfg.DEV_USER_ID) || 0, src: 'dev-fallback' }; // plain browser, no Telegram
   }
-  var userId = resolveUserId();
-  var inTelegram = !!(tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id);
-  try {
-    console.info('[Lycee] user_id =', userId,
-      inTelegram ? '(Telegram user)' : '(fallback — not launched from Telegram)');
-  } catch (e) {}
+  var resolved = resolveUserId();
+  var userId = resolved.id;
+  var userSrc = resolved.src;
+  var inTelegram = (userSrc === 'telegram' || userSrc === 'stored-telegram');
+  try { console.info('[Lycee] user_id =', userId, '(source: ' + userSrc + ')'); } catch (e) {}
+
+  // Carry the Telegram launch fragment across in-app navigation so initData stays
+  // available on every tab (defence-in-depth alongside the persisted id above).
+  function preserveHashOnLinks() {
+    if (!location.hash) return;
+    var links = document.querySelectorAll('a[href]');
+    for (var i = 0; i < links.length; i++) {
+      var href = links[i].getAttribute('href');
+      if (href && /\.html($|\?)/.test(href) && href.indexOf('#') === -1) {
+        links[i].setAttribute('href', href + location.hash);
+      }
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', preserveHashOnLinks);
+  else preserveHashOnLinks();
 
   // core fetch: adds base, JSON + ngrok headers, throws on non-2xx
   async function req(path, opts) {
