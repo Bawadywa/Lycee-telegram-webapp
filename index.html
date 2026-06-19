@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Lycee — New transaction</title>
+  <title>Lycee</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="./config.js?v=13"></script>
-  <script src="./api.js?v=13"></script>
+  <script src="./config.js?v=15"></script>
+  <script src="./api.js?v=15"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -31,17 +31,19 @@
     *{ box-sizing:border-box; }
     html,body{ margin:0; }
 
+    /* Single-page app: full-height flex column so the Google Sheet view can fill
+       the viewport while the New / Transactions views scroll inside their area. */
     body{
       font-family:'Inter',system-ui,Arial,sans-serif;
       background:var(--bg);
       color:var(--text);
-      padding:14px 16px 32px;
-      min-height:100vh;
+      padding:14px 16px;
+      height:100vh; height:100dvh;
+      display:flex; flex-direction:column;
+      overflow:hidden;
       -webkit-font-smoothing:antialiased;
       text-rendering:optimizeLegibility;
     }
-
-    /* Subtle Lycee glow accents over the Telegram background */
     body::before{
       content:"";
       position:fixed; inset:0; z-index:-1; pointer-events:none;
@@ -51,7 +53,6 @@
     }
 
     h1,h2,h3{ font-family:'Manrope',system-ui,Arial,sans-serif; letter-spacing:-.01em; margin:0; }
-
     .gradient{
       background:var(--grad);
       -webkit-background-clip:text; background-clip:text;
@@ -59,14 +60,11 @@
     }
 
     /* ---------- Top bar ---------- */
-    /* 3-zone bar: brand left, actions CENTER, right corner left free for
-       Telegram's native close/menu buttons (which otherwise cover ours). */
-    .topbar{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px; margin-bottom:14px; }
+    .topbar{ flex:none; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px; margin-bottom:14px; }
     .brand{
       justify-self:start;
       font-family:'Manrope'; font-weight:800; font-size:22px; line-height:1;
-      background:var(--grad); -webkit-background-clip:text; background-clip:text;
-      -webkit-text-fill-color:transparent;
+      background:var(--grad); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
     }
     .actions{ justify-self:center; display:flex; gap:8px; }
     .icon-btn{
@@ -78,21 +76,24 @@
       transition:border-color .2s, background .2s;
     }
     .icon-btn:active{ transform:translateY(1px); }
+    .icon-btn:disabled{ opacity:.6; cursor:default; }
     .icon-btn svg{ width:18px; height:18px; display:block; }
     .icon-btn .lbl{ transform:translateY(1px); }
     /* Fullscreen toggle is only useful on desktop — mobile Telegram opens fullscreen by default */
     @media (hover:none) and (pointer:coarse){ .desktop-only{ display:none !important; } }
 
-    /* ---------- Tabs (link to the two pages) ---------- */
+    /* ---------- Tabs ---------- */
     .tabs{
+      flex:none;
       display:flex; gap:6px; padding:5px; margin-bottom:18px;
       background:var(--card_bg); border:1px solid var(--border);
       border-radius:999px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
     }
     .tab{
       flex:1; display:inline-flex; align-items:center; justify-content:center; gap:8px;
-      width:auto; margin:0; padding:11px 10px; border-radius:999px; white-space:nowrap;
-      text-decoration:none; color:var(--hint); font-weight:700; font-size:13px;
+      width:auto; margin:0; padding:11px 10px; border:none; background:transparent;
+      border-radius:999px; white-space:nowrap; cursor:pointer;
+      font-family:inherit; color:var(--hint); font-weight:700; font-size:13px;
       transition:color .2s, background .2s;
     }
     .tab.active{ color:#fff; background:var(--grad); }
@@ -103,9 +104,17 @@
     }
     .tab.active .badge{ background:rgba(255,255,255,.28); color:#fff; }
 
+    /* ---------- View system ---------- */
+    main{ flex:1 1 auto; min-height:0; display:flex; }
+    .view{ flex:1 1 auto; min-height:0; width:100%; }
+    .view[hidden]{ display:none !important; }
+    /* New + Transactions scroll inside their area; Sheet fills it for the embed. */
+    #view-new, #view-table{ overflow-y:auto; -webkit-overflow-scrolling:touch; }
+    #view-sheet{ display:flex; }
+    .col{ max-width:680px; margin-inline:auto; padding-bottom:24px; } /* narrow form column */
+    #view-table .col{ max-width:100%; }                              /* table uses full width */
+
     /* ---------- Card ---------- */
-    /* The form column is much narrower than the page; centered on wide screens. */
-    main{ max-width:680px; margin-inline:auto; }
     .card{
       background:var(--card_bg); border:1px solid var(--border);
       border-radius:20px; padding:18px;
@@ -136,17 +145,13 @@
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4 6 8 10 12 6'/%3E%3C/svg%3E");
       background-repeat:no-repeat; background-position:right 12px center; padding-right:36px;
     }
-    /* The native dropdown popup ignores the translucent field bg and renders white by default,
-       making white option text unreadable in dark mode — pin solid colors on the options. */
     select option, select optgroup{ background-color:var(--secondary_bg); color:var(--text); }
     select option:disabled{ color:var(--hint); }
 
     .row2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 
     /* Date field with mobile placeholder overlay */
-    input[type="date"]{
-      height:46px; line-height:46px; appearance:none; -webkit-appearance:none;
-    }
+    input[type="date"]{ height:46px; line-height:46px; appearance:none; -webkit-appearance:none; }
     input[type="date"]:not(:valid){ color:var(--hint); }
     input[type="date"]:valid{ color:var(--text); }
     input[type="date"]::-webkit-calendar-picker-indicator{ opacity:.7; cursor:pointer; }
@@ -180,9 +185,68 @@
       display:inline-flex; align-items:center; justify-content:center; gap:8px;
     }
     .btn-gradient:active, .btn-ghost:active{ transform:translateY(1px); }
+    .btn-gradient:disabled, .btn-ghost:disabled{ opacity:.6; cursor:default; }
     .btn-ghost svg{ width:18px; height:18px; }
-
     .hint{ color:var(--hint); font-size:12px; margin-top:14px; text-align:center; }
+
+    /* ---------- Transactions table ---------- */
+    .head{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:6px; }
+    .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -4px; }
+    table{ width:100%; border-collapse:collapse; font-size:14px; }
+    thead th{
+      text-align:left; padding:10px 10px; font-size:11px; font-weight:700;
+      text-transform:uppercase; letter-spacing:.1em; color:var(--hint);
+      border-bottom:2px solid transparent; border-image:var(--grad) 1; white-space:nowrap;
+    }
+    thead th.right{ text-align:right; }
+    tbody td{ padding:13px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+    tbody tr:last-child td{ border-bottom:none; }
+    .t-date{ white-space:nowrap; color:var(--text); }
+    .t-total{ font-weight:800; text-align:right; white-space:nowrap; }
+    .t-comment{ color:var(--hint); max-width:160px; }
+    .cur-chip{
+      display:inline-block; padding:3px 9px; border-radius:999px;
+      border:1px solid var(--border); font-size:12px; font-weight:700; white-space:nowrap;
+    }
+    .del{
+      width:auto; margin:0; padding:4px 6px; background:transparent; border:none;
+      color:var(--hint); cursor:pointer; font-size:16px; line-height:1; border-radius:8px;
+    }
+    .del:hover{ color:#f87171; }
+    th.act, td.act{ width:34px; text-align:center; }
+
+    /* Empty / status state (transactions) */
+    .empty{ text-align:center; padding:42px 16px 30px; }
+    .empty-emoji{ font-size:40px; }
+    .empty h3{ font-size:18px; font-weight:800; margin-top:12px; }
+    .empty p{ color:var(--hint); font-size:14px; margin:8px 0 0; }
+    .footer-actions{ margin-top:16px; display:flex; flex-direction:column; gap:10px; }
+    .btn-ghost-clear{
+      width:100%; margin:0; padding:13px; background:transparent;
+      border:1px solid var(--border); color:var(--text);
+      border-radius:999px; font-family:inherit; font-weight:700; font-size:15px; cursor:pointer;
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .btn-ghost-clear svg{ width:18px; height:18px; }
+
+    /* ---------- Google Sheet view ---------- */
+    .sheet-card{
+      flex:1 1 auto; min-height:0; display:flex;
+      background:var(--card_bg); border:1px solid var(--border);
+      border-radius:20px; padding:6px; overflow:hidden;
+      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    }
+    .sheet-frame{ flex:1 1 auto; width:100%; min-height:0; border:none; border-radius:14px; background:#fff; }
+    .sheet-empty{
+      flex:1 1 auto; min-height:0; display:flex;
+      align-items:center; justify-content:center; text-align:center; padding:24px;
+    }
+    .sheet-state-inner{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+    .sheet-empty .empty-emoji{ font-size:44px; }
+    .sheet-empty p{ color:var(--hint); font-size:14px; margin:0; max-width:320px; }
+    .sheet-spinner{ width:34px; height:34px; color:#2dd4bf; }
+    .spin{ animation:spin 1s linear infinite; }
+    @keyframes spin{ to{ transform:rotate(360deg); } }
 
     /* ---------- Toast ---------- */
     .toast{
@@ -211,74 +275,137 @@
   </header>
 
   <nav class="tabs">
-    <a class="tab active" href="./index.html" data-i18n="tab.new">New</a>
-    <a class="tab" href="./table.html">
+    <button class="tab active" type="button" data-view="new" data-i18n="tab.new">New</button>
+    <button class="tab" type="button" data-view="table">
       <span data-i18n="tab.list">Transactions</span>
       <span class="badge" id="countBadge">0</span>
-    </a>
-    <a class="tab" href="./sheet.html" data-i18n="tab.sheet">Google Sheet</a>
+    </button>
+    <button class="tab" type="button" data-view="sheet" data-i18n="tab.sheet">Google Sheet</button>
   </nav>
 
   <main>
-    <section class="card">
-      <h1 class="title gradient" data-i18n="form.title">New transaction</h1>
-      <p class="subtitle" data-i18n="form.subtitle">Add an entry to your ledger.</p>
+    <!-- ============ NEW ============ -->
+    <section class="view" id="view-new">
+      <div class="col">
+        <div class="card">
+          <h1 class="title gradient" data-i18n="form.title">New transaction</h1>
+          <p class="subtitle" data-i18n="form.subtitle">Add an entry to your ledger.</p>
 
-      <label data-i18n="field.date">Date</label>
-      <div class="date-field" id="dateWrap">
-        <input id="date" type="date" required />
-        <span class="date-placeholder" data-i18n="ph.date">📅 Select date</span>
-      </div>
+          <label data-i18n="field.date">Date</label>
+          <div class="date-field" id="dateWrap">
+            <input id="date" type="date" required />
+            <span class="date-placeholder" data-i18n="ph.date">📅 Select date</span>
+          </div>
 
-      <div class="row2">
-        <div>
-          <label data-i18n="field.total">Total</label>
-          <input id="total" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" autocomplete="off" />
-        </div>
-        <div>
-          <label data-i18n="field.currency">Currency</label>
-          <select id="currency">
-            <option value="USD">USD</option>
-            <option value="EUR">EUR</option>
-            <option value="UAH">UAH</option>
+          <div class="row2">
+            <div>
+              <label data-i18n="field.total">Total</label>
+              <input id="total" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" autocomplete="off" />
+            </div>
+            <div>
+              <label data-i18n="field.currency">Currency</label>
+              <select id="currency">
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="UAH">UAH</option>
+              </select>
+            </div>
+          </div>
+
+          <label data-i18n="field.type">Type</label>
+          <select id="type"><option value="" disabled selected data-i18n="ph.select">Select…</option></select>
+
+          <label data-i18n="field.category">Category</label>
+          <select id="category"><option value="" disabled selected data-i18n="ph.select">Select…</option></select>
+
+          <label data-i18n="field.counterparty">Counterparty</label>
+          <select id="counterparty"><option value="" disabled selected data-i18n="ph.select">Select…</option></select>
+
+          <label data-i18n="field.comment">Comment</label>
+          <textarea id="comment" rows="3" maxlength="40" data-i18n-ph="ph.comment" placeholder="What was it for?"></textarea>
+
+          <button class="btn-gradient" id="createBtn" type="button" data-i18n="btn.create">Create transaction</button>
+
+          <label data-i18n="field.count">How many to generate</label>
+          <select id="count">
+            <option value="5">5</option>
+            <option value="10" selected>10</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+            <option value="25">25</option>
           </select>
+          <button class="btn-ghost" id="randomBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/></svg>
+            <span data-i18n="btn.random">Generate random data</span>
+          </button>
+
+          <p class="hint" id="themeHint"></p>
         </div>
       </div>
+    </section>
 
-      <label data-i18n="field.type">Type</label>
-      <select id="type">
-        <option value="" disabled selected data-i18n="ph.select">Select…</option>
-      </select>
+    <!-- ============ TRANSACTIONS ============ -->
+    <section class="view" id="view-table" hidden>
+      <div class="col">
+        <div class="card">
+          <div class="head">
+            <div>
+              <h1 class="title gradient" data-i18n="table.title">Transactions</h1>
+              <p class="subtitle" data-i18n="table.subtitle">Everything you've added so far.</p>
+            </div>
+          </div>
 
-      <label data-i18n="field.category">Category</label>
-      <select id="category">
-        <option value="" disabled selected data-i18n="ph.select">Select…</option>
-      </select>
+          <div id="content" style="display:none">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th data-i18n="th.date">Date</th>
+                    <th class="right" data-i18n="th.total">Total</th>
+                    <th data-i18n="th.currency">Currency</th>
+                    <th data-i18n="th.type">Type</th>
+                    <th data-i18n="th.category">Category</th>
+                    <th data-i18n="th.counterparty">Counterparty</th>
+                    <th data-i18n="th.comment">Comment</th>
+                    <th class="act"></th>
+                  </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+              </table>
+            </div>
 
-      <label data-i18n="field.counterparty">Counterparty</label>
-      <select id="counterparty">
-        <option value="" disabled selected data-i18n="ph.select">Select…</option>
-      </select>
+            <div class="footer-actions">
+              <button class="btn-ghost-clear" id="clearBtn" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                <span data-i18n="btn.clear">Clear all</span>
+              </button>
+            </div>
+          </div>
 
-      <label data-i18n="field.comment">Comment</label>
-      <textarea id="comment" rows="3" maxlength="40" data-i18n-ph="ph.comment" placeholder="What was it for?"></textarea>
+          <div id="empty" class="empty" style="display:none">
+            <div class="empty-emoji" id="emptyEmoji">🧾</div>
+            <h3 id="emptyTitle" data-i18n="empty.title">No transactions yet</h3>
+            <p id="emptyText" data-i18n="empty.text">Create one or generate sample data on the New tab.</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
-      <button class="btn-gradient" id="createBtn" type="button" data-i18n="btn.create">Create transaction</button>
-
-      <label data-i18n="field.count">How many to generate</label>
-      <select id="count">
-        <option value="5">5</option>
-        <option value="10" selected>10</option>
-        <option value="15">15</option>
-        <option value="20">20</option>
-        <option value="25">25</option>
-      </select>
-      <button class="btn-ghost" id="randomBtn" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/></svg>
-        <span data-i18n="btn.random">Generate random data</span>
-      </button>
-
-      <p class="hint" id="themeHint"></p>
+    <!-- ============ GOOGLE SHEET ============ -->
+    <section class="view" id="view-sheet" hidden>
+      <div class="sheet-card">
+        <iframe id="sheetFrame" class="sheet-frame" title="Lycee Google Sheet" loading="lazy" style="display:none"></iframe>
+        <div id="sheetState" class="sheet-empty">
+          <div id="sheetLoading" class="sheet-state-inner">
+            <svg class="spin sheet-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/></svg>
+            <p data-i18n="sheet.loading">Loading…</p>
+          </div>
+          <div id="sheetNoTx" class="sheet-state-inner" style="display:none">
+            <div class="empty-emoji">🧾</div>
+            <p data-i18n="sheet.notx">First, add some transactions please.</p>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -288,12 +415,12 @@
     /* ---------------- Telegram bootstrap (with standalone fallback) ---------------- */
     const tg = (window.Telegram && window.Telegram.WebApp) || {
       ready(){}, expand(){}, onEvent(){}, themeParams:{}, colorScheme:'dark',
-      showAlert(m){ alert(m); }, isFullscreen:false,
+      showAlert(m){ alert(m); }, showConfirm(m,cb){ cb(confirm(m)); }, isFullscreen:false,
       HapticFeedback:{ notificationOccurred(){}, impactOccurred(){} }
     };
     tg.ready(); tg.expand();
 
-    /* ---------------- i18n ---------------- */
+    /* ---------------- i18n (merged across all three views) ---------------- */
     const dict = {
       en:{
         'tab.new':'New', 'tab.list':'Transactions', 'tab.sheet':'Google Sheet',
@@ -307,6 +434,15 @@
         'toast.error':'Something went wrong',
         'alert.fill':'Please fill in date, total, type, category and counterparty.',
         'hint.config':'⚠ Set API_BASE in config.js',
+        'table.title':'Transactions', 'table.subtitle':"Everything you've added so far.",
+        'th.date':'Date', 'th.total':'Total', 'th.currency':'Currency', 'th.type':'Type',
+        'th.category':'Category', 'th.counterparty':'Counterparty', 'th.comment':'Comment',
+        'empty.title':'No transactions yet', 'empty.text':'Create one or generate sample data on the New tab.',
+        'cfg.title':'Backend not configured', 'cfg.text':'Set API_BASE in config.js to load transactions.',
+        'err.title':"Couldn't load transactions", 'err.text':'Check that the backend is running and reachable.',
+        'btn.clear':'Clear all', 'confirm.clear':'Delete all transactions?',
+        'toast.cleared':'All cleared',
+        'sheet.loading':'Loading…', 'sheet.notx':'First, add some transactions please.',
         'theme':'Theme'
       },
       uk:{
@@ -321,29 +457,39 @@
         'toast.error':'Сталася помилка',
         'alert.fill':'Вкажіть дату, суму, тип, категорію та контрагента.',
         'hint.config':'⚠ Вкажіть API_BASE у config.js',
+        'table.title':'Транзакції', 'table.subtitle':'Усе, що ви додали.',
+        'th.date':'Дата', 'th.total':'Сума', 'th.currency':'Валюта', 'th.type':'Тип',
+        'th.category':'Категорія', 'th.counterparty':'Контрагент', 'th.comment':'Коментар',
+        'empty.title':'Поки немає транзакцій', 'empty.text':'Створіть або згенеруйте дані на вкладці «Нова».',
+        'cfg.title':'Бекенд не налаштовано', 'cfg.text':'Вкажіть API_BASE у config.js, щоб завантажити транзакції.',
+        'err.title':'Не вдалося завантажити транзакції', 'err.text':'Перевірте, що бекенд запущено та доступний.',
+        'btn.clear':'Очистити все', 'confirm.clear':'Видалити всі транзакції?',
+        'toast.cleared':'Очищено',
+        'sheet.loading':'Завантаження…', 'sheet.notx':'Спершу додайте кілька транзакцій, будь ласка.',
         'theme':'Тема'
       }
     };
     let lang = localStorage.getItem('lycee_lang')
       || (((tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || '').startsWith('uk') ? 'uk' : 'en');
     const t = (k) => (dict[lang] && dict[lang][k]) || (dict.en[k] || k);
+    const locale = () => (lang === 'uk' ? 'uk-UA' : 'en-US');
 
     function applyI18n(){
       document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
       document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
       document.documentElement.lang = lang;
       document.getElementById('langLabel').textContent = (lang === 'uk') ? 'UA' : 'EN';
-      if (typeof refillSelects === 'function') refillSelects();
+      refillSelects();
+      renderTable();     // re-localize dates / numbers / names
       updateThemeHint();
     }
-
     document.getElementById('langBtn').onclick = () => {
       lang = (lang === 'uk') ? 'en' : 'uk';
       localStorage.setItem('lycee_lang', lang);
       applyI18n();
     };
 
-    /* ---------------- Theme (derive from Telegram, keep Lycee gradient) ---------------- */
+    /* ---------------- Theme ---------------- */
     function applyTheme(){
       const p = tg.themeParams || {};
       const scheme = tg.colorScheme === 'light' ? 'light' : 'dark';
@@ -363,16 +509,11 @@
       const focus  = scheme === 'dark' ? 'rgba(46,212,191,.28)' : 'rgba(46,212,191,.35)';
 
       const s = document.documentElement.style;
-      s.setProperty('--bg', bg);
-      s.setProperty('--text', text);
-      s.setProperty('--hint', hint);
-      s.setProperty('--button', button);
-      s.setProperty('--button_text', buttonText);
+      s.setProperty('--bg', bg); s.setProperty('--text', text); s.setProperty('--hint', hint);
+      s.setProperty('--button', button); s.setProperty('--button_text', buttonText);
       s.setProperty('--secondary_bg', secondaryBg);
-      s.setProperty('--card_bg', card);
-      s.setProperty('--border', border);
-      s.setProperty('--field_bg', fieldBg);
-      s.setProperty('--field_border', fBorder);
+      s.setProperty('--card_bg', card); s.setProperty('--border', border);
+      s.setProperty('--field_bg', fieldBg); s.setProperty('--field_border', fBorder);
       s.setProperty('--field_focus', focus);
 
       if (typeof tg.setBackgroundColor === 'function') { try { tg.setBackgroundColor(bg); } catch(e){} }
@@ -386,7 +527,7 @@
     applyTheme();
     if (typeof tg.onEvent === 'function') tg.onEvent('themeChanged', applyTheme);
 
-    /* ---------------- Fullscreen toggle (desktop only — hidden on mobile via CSS) ---------------- */
+    /* ---------------- Fullscreen toggle (desktop only) ---------------- */
     const fsBtn = document.getElementById('fsBtn');
     const fsExpand = document.getElementById('fsExpand');
     const fsCompress = document.getElementById('fsCompress');
@@ -407,8 +548,13 @@
 
     /* ---------------- Helpers ---------------- */
     const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    const escapeHtml = esc;
     function haptic(type){ try { tg.HapticFeedback && tg.HapticFeedback.notificationOccurred(type); } catch(e){} }
     function notify(msg){ if (typeof tg.showAlert === 'function') tg.showAlert(msg); else alert(msg); }
+    function confirmThen(msg, cb){
+      if (typeof tg.showConfirm === 'function') tg.showConfirm(msg, ok => { if (ok) cb(); });
+      else if (confirm(msg)) cb();
+    }
     let toastTimer;
     function showToast(msg){
       const el = document.getElementById('toast');
@@ -416,14 +562,33 @@
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
     }
-    function showConfigHint(){
-      const el = document.getElementById('themeHint');
-      if (el) el.textContent = t('hint.config');
+    function fmtNum(n){
+      try { return new Intl.NumberFormat(locale(), { minimumFractionDigits:2, maximumFractionDigits:2 }).format(n); }
+      catch(e){ return Number(n).toFixed(2); }
+    }
+    function fmtDate(iso){
+      const d = new Date(iso + 'T00:00:00');
+      if (isNaN(d)) return iso;
+      try { return new Intl.DateTimeFormat(locale(), { day:'2-digit', month:'short', year:'numeric' }).format(d); }
+      catch(e){ return iso; }
     }
 
-    /* ---------------- Backend-driven dropdowns (Type / Category / Counterparty) ----------------
-       Options come from the FastAPI backend (see config.js / api.js). Values are the
-       backend row ids; labels are localized via Lycee.pickName. */
+    /* ---------------- View switching (no page reload) ---------------- */
+    const views = {
+      new:   document.getElementById('view-new'),
+      table: document.getElementById('view-table'),
+      sheet: document.getElementById('view-sheet')
+    };
+    const tabBtns = Array.from(document.querySelectorAll('.tab'));
+    function showView(name){
+      Object.keys(views).forEach(k => { views[k].hidden = (k !== name); });
+      tabBtns.forEach(b => b.classList.toggle('active', b.dataset.view === name));
+      if (name === 'table') reconcileTable();
+      if (name === 'sheet') ensureSheetLoaded();
+    }
+    tabBtns.forEach(b => { b.onclick = () => showView(b.dataset.view); });
+
+    /* ---------------- Dropdowns (Type / Category / Counterparty) ---------------- */
     const typeSel = document.getElementById('type');
     const catSel  = document.getElementById('category');
     const cpSel   = document.getElementById('counterparty');
@@ -434,33 +599,95 @@
       sel.innerHTML = ph + items.map(o => `<option value="${esc(o.id)}">${esc(Lycee.pickName(o, lang))}</option>`).join('');
     }
     function refillSelects(){
-      fillSelect(typeSel, TYPES);
-      fillSelect(catSel, CATS);
-      fillSelect(cpSel, CPS);
+      if (!typeSel) return;
+      fillSelect(typeSel, TYPES); fillSelect(catSel, CATS); fillSelect(cpSel, CPS);
     }
-
     async function loadOptions(){
-      if (!Lycee.configured){ showConfigHint(); return; }
+      if (!Lycee.configured){ const el = document.getElementById('themeHint'); if (el) el.textContent = t('hint.config'); return; }
       try {
         const [types, cats, cps] = await Promise.all([
-          Lycee.getTransactionTypes(),
-          Lycee.getCategories(),
-          Lycee.getCounterparties()
+          Lycee.getTransactionTypes(), Lycee.getCategories(), Lycee.getCounterparties()
         ]);
         TYPES = types || []; CATS = cats || []; CPS = cps || [];
         refillSelects();
       } catch(e){ console.error(e); showToast(t('toast.error')); }
     }
 
-    async function updateBadge(){
-      if (!Lycee.configured) return;
-      try {
-        const tx = await Lycee.getTransactions();
-        document.getElementById('countBadge').textContent = (tx || []).length;
-      } catch(e){ /* ignore badge errors */ }
+    /* ---------------- Transactions ---------------- */
+    let TX = Lycee.cachedTransactions() || [];
+    let txLoaded = !!Lycee.cachedTransactions();
+
+    function renderTable(){
+      document.getElementById('countBadge').textContent = TX.length;
+      const content = document.getElementById('content');
+      const empty = document.getElementById('empty');
+      if (!txLoaded) return; // nothing decided yet (no cache) → leave as-is until first fetch
+
+      if (!TX.length){
+        content.style.display = 'none';
+        empty.style.display = 'block';
+        document.getElementById('emptyEmoji').textContent = '🧾';
+        document.getElementById('emptyTitle').textContent = t('empty.title');
+        document.getElementById('emptyText').textContent = t('empty.text');
+        return;
+      }
+      content.style.display = 'block';
+      empty.style.display = 'none';
+      document.getElementById('rows').innerHTML = TX.map(tx => `
+        <tr data-id="${escapeHtml(tx.id)}">
+          <td class="t-date">${fmtDate(tx.occured_at || tx.date)}</td>
+          <td class="t-total">${fmtNum(tx.total)}</td>
+          <td><span class="cur-chip">${escapeHtml(tx.currency)}</span></td>
+          <td>${tx.type ? `<span class="cur-chip">${escapeHtml(Lycee.pickName(tx.type, lang))}</span>` : '—'}</td>
+          <td>${tx.category ? `<span class="cur-chip">${escapeHtml(Lycee.pickName(tx.category, lang))}</span>` : '—'}</td>
+          <td>${escapeHtml(Lycee.pickName(tx.counterparty, lang) || '—')}</td>
+          <td class="t-comment">${escapeHtml(tx.comment || '—')}</td>
+          <td class="act"><button class="del" type="button" aria-label="Delete">✕</button></td>
+        </tr>
+      `).join('');
     }
 
-    /* ---------------- Form actions ---------------- */
+    // Silent reconcile — only re-render when the data actually differs.
+    async function reconcileTable(){
+      if (!Lycee.configured) return;
+      try {
+        const fresh = (await Lycee.getTransactions()) || [];
+        const changed = !txLoaded || JSON.stringify(fresh) !== JSON.stringify(TX);
+        TX = fresh; txLoaded = true;
+        if (changed) renderTable();
+        else document.getElementById('countBadge').textContent = TX.length;
+      } catch(e){ console.error(e); }
+    }
+
+    // Delete a single row
+    document.getElementById('rows').addEventListener('click', async (e) => {
+      const btn = e.target.closest('.del');
+      if (!btn) return;
+      const id = btn.closest('tr').dataset.id;
+      btn.disabled = true;
+      try {
+        await Lycee.deleteTransaction(id);
+        TX = TX.filter(tx => String(tx.id) !== String(id));
+        Lycee.setCachedTransactions(TX);
+        haptic('warning');
+        renderTable();
+      } catch(err){ console.error(err); btn.disabled = false; showToast(t('toast.error')); }
+    });
+
+    document.getElementById('clearBtn').onclick = () => {
+      if (!TX.length) return;
+      confirmThen(t('confirm.clear'), async () => {
+        try {
+          await Lycee.clearTransactions();
+          TX = []; Lycee.setCachedTransactions(TX);
+          haptic('success');
+          renderTable();
+          showToast(t('toast.cleared'));
+        } catch(e){ console.error(e); showToast(t('toast.error')); }
+      });
+    };
+
+    /* ---------------- New transaction form ---------------- */
     const dateInput = document.getElementById('date');
     const dateWrap  = document.getElementById('dateWrap');
     const syncDate = () => dateWrap.classList.toggle('has-value', !!dateInput.value);
@@ -478,8 +705,7 @@
       const comment = document.getElementById('comment').value.trim();
 
       if (!date || isNaN(total) || total <= 0 || !type_id || !category_id || !counterparty_id){
-        notify(t('alert.fill'));
-        return;
+        notify(t('alert.fill')); return;
       }
       if (!Lycee.configured){ notify(t('hint.config')); return; }
 
@@ -490,7 +716,8 @@
         document.getElementById('total').value = '';
         document.getElementById('comment').value = '';
         typeSel.selectedIndex = 0; catSel.selectedIndex = 0; cpSel.selectedIndex = 0;
-        updateBadge();
+        await reconcileTable();   // refresh cache + badge
+        markSheetStale();         // sheet must rebuild to include the new row
         showToast(t('toast.created'));
       } catch(e){ console.error(e); haptic('error'); notify(t('toast.error')); }
       finally { createBtn.disabled = false; }
@@ -504,20 +731,68 @@
       try {
         await Lycee.generateRandom(count);
         haptic('success');
+        await reconcileTable();
+        markSheetStale();
         showToast(t('toast.generated'));
-        // Rows are persisted on the backend → show them on the Transactions tab.
-        // The Google Sheet is (re)built later on the Sheet tab, behind its loading screen.
-        location.href = './table.html';
-      } catch(e){ console.error(e); haptic('error'); notify(t('toast.error')); randomBtn.disabled = false; }
+        showView('table');        // show the freshly generated rows
+      } catch(e){ console.error(e); haptic('error'); notify(t('toast.error')); }
+      finally { randomBtn.disabled = false; }
     };
+
+    /* ---------------- Google Sheet (lazy, one per user, persists across tabs) ---------------- */
+    const frame      = document.getElementById('sheetFrame');
+    const stateBox   = document.getElementById('sheetState');
+    const loadingBox = document.getElementById('sheetLoading');
+    const noTxBox    = document.getElementById('sheetNoTx');
+    const SHEET_KEY  = 'lycee_sheet_url_' + (Lycee.userId || 'anon');
+    const cachedSheetUrl  = () => { try { return localStorage.getItem(SHEET_KEY) || ''; } catch(e){ return ''; } };
+    const rememberSheetUrl = (u) => { try { if (u) localStorage.setItem(SHEET_KEY, u); } catch(e){} };
+
+    let sheetShown = false;    // a sheet is currently embedded
+    let sheetLoading = false;  // a load is in flight
+
+    function showSheetLoading(){ frame.style.display='none'; stateBox.style.display='flex'; loadingBox.style.display=''; noTxBox.style.display='none'; }
+    function showSheetNoTx(){ frame.style.display='none'; stateBox.style.display='flex'; loadingBox.style.display='none'; noTxBox.style.display=''; }
+    function showSheetFrame(url){
+      if (frame.getAttribute('src') !== url) frame.src = url;
+      frame.style.display=''; stateBox.style.display='none'; sheetShown = true;
+    }
+    // After creating/generating, the embedded sheet no longer reflects the data.
+    function markSheetStale(){ sheetShown = false; }
+
+    async function loadSheet(){
+      const known = cachedSheetUrl();
+      if (known) showSheetFrame(known); else showSheetLoading();
+      if (!Lycee.configured) return;
+      try {
+        const sheetRes = await Lycee.getSheetUrl();
+        let url = sheetRes && sheetRes.url;
+        if (url){ rememberSheetUrl(url); showSheetFrame(url); return; }
+        if (known) return; // backend empty but we have a cached one → keep it
+        // none yet → create once, only if there is something to publish
+        const txs = (TX && TX.length) ? TX : (await Lycee.getTransactions());
+        if (!txs || !txs.length){ showSheetNoTx(); return; }
+        const res = await Lycee.createSheet();
+        url = res && res.url;
+        if (url){ rememberSheetUrl(url); showSheetFrame(url); }
+        else if (!known) showSheetLoading();
+      } catch(e){ console.error(e); if (!known) showSheetLoading(); }
+    }
+    async function ensureSheetLoaded(){
+      if (sheetShown || sheetLoading) return; // already embedded → leave it untouched
+      sheetLoading = true;
+      try { await loadSheet(); } finally { sheetLoading = false; }
+    }
 
     /* ---------------- Init ---------------- */
     applyI18n();
     syncDate();
+    renderTable();           // instant paint from cache (badge + table)
+    showView('new');
     (async () => {
       try { await Lycee.ensureUser(); } catch(e){ console.error(e); }
       await loadOptions();
-      updateBadge();
+      reconcileTable();      // silent refresh
     })();
   </script>
 </body>
