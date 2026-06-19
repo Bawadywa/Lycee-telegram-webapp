@@ -199,6 +199,10 @@
   /* -------- google sheet -------- */
   function getSheetUrl() { return req('/google_sheet' + qp()); }
   function createSheet() { return req('/google_sheet' + qp(), { method: 'POST' }); }
+  // Refresh the EXISTING sheet's data in place (clear → fill). The published
+  // iframe then reflects the new data without creating a new sheet.
+  function clearSheet() { return req('/google_sheet/clear' + qp()); }
+  function fillSheet() { return req('/google_sheet/fill' + qp()); }
 
   /* -------- helpers -------- */
   // localized label for {name_en, name_uk} reference objects
@@ -231,6 +235,8 @@
     clearTransactions: clearTransactions,
     getSheetUrl: getSheetUrl,
     createSheet: createSheet,
+    clearSheet: clearSheet,
+    fillSheet: fillSheet,
     pickName: pickName
   };
 })();

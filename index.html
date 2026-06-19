@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Lycee</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="./config.js?v=15"></script>
-  <script src="./api.js?v=15"></script>
+  <script src="./config.js?v=16"></script>
+  <script src="./api.js?v=16"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -671,6 +671,7 @@
         Lycee.setCachedTransactions(TX);
         haptic('warning');
         renderTable();
+        refreshSheetData();       // update the existing sheet in place (if any)
       } catch(err){ console.error(err); btn.disabled = false; showToast(t('toast.error')); }
     });
 
@@ -682,6 +683,7 @@
           TX = []; Lycee.setCachedTransactions(TX);
           haptic('success');
           renderTable();
+          refreshSheetData();       // update the existing sheet in place (if any)
           showToast(t('toast.cleared'));
         } catch(e){ console.error(e); showToast(t('toast.error')); }
       });
@@ -717,7 +719,7 @@
         document.getElementById('comment').value = '';
         typeSel.selectedIndex = 0; catSel.selectedIndex = 0; cpSel.selectedIndex = 0;
         await reconcileTable();   // refresh cache + badge
-        markSheetStale();         // sheet must rebuild to include the new row
+        refreshSheetData();       // update the existing sheet in place (if any)
         showToast(t('toast.created'));
       } catch(e){ console.error(e); haptic('error'); notify(t('toast.error')); }
       finally { createBtn.disabled = false; }
@@ -732,7 +734,7 @@
         await Lycee.generateRandom(count);
         haptic('success');
         await reconcileTable();
-        markSheetStale();
+        refreshSheetData();       // update the existing sheet in place (if any)
         showToast(t('toast.generated'));
         showView('table');        // show the freshly generated rows
       } catch(e){ console.error(e); haptic('error'); notify(t('toast.error')); }
@@ -757,8 +759,24 @@
       if (frame.getAttribute('src') !== url) frame.src = url;
       frame.style.display=''; stateBox.style.display='none'; sheetShown = true;
     }
-    // After creating/generating, the embedded sheet no longer reflects the data.
-    function markSheetStale(){ sheetShown = false; }
+
+    // On any transaction change, refresh the EXISTING sheet's data in place
+    // (clear → fill). Only runs once a sheet has been created (cached URL present).
+    // Serialized + coalesced so rapid changes don't interleave clear/fill calls.
+    let sheetRefreshing = false, sheetDirty = false;
+    async function refreshSheetData(){
+      if (!Lycee.configured || !cachedSheetUrl()) return; // no sheet yet → nothing to refresh
+      if (sheetRefreshing){ sheetDirty = true; return; }
+      sheetRefreshing = true;
+      try {
+        do {
+          sheetDirty = false;
+          await Lycee.clearSheet();
+          await Lycee.fillSheet();
+        } while (sheetDirty);
+      } catch(e){ console.error('[Lycee] sheet refresh failed', e); }
+      finally { sheetRefreshing = false; }
+    }
 
     async function loadSheet(){
       const known = cachedSheetUrl();
