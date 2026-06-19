@@ -214,6 +214,7 @@
                 <th data-i18n="th.date">Date</th>
                 <th class="right" data-i18n="th.total">Total</th>
                 <th data-i18n="th.currency">Currency</th>
+                <th data-i18n="th.type">Type</th>
                 <th data-i18n="th.category">Category</th>
                 <th data-i18n="th.counterparty">Counterparty</th>
                 <th data-i18n="th.comment">Comment</th>
@@ -225,10 +226,6 @@
         </div>
 
         <div class="footer-actions">
-          <button class="btn-gradient" id="sendBtn" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
-            <span data-i18n="btn.send">Send to Telegram</span>
-          </button>
           <button class="btn-ghost" id="clearBtn" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
             <span data-i18n="btn.clear">Clear all</span>
@@ -261,7 +258,7 @@
       en:{
         'tab.new':'New', 'tab.list':'Transactions', 'tab.sheet':'Google Sheet',
         'table.title':'Transactions', 'table.subtitle':"Everything you've added so far.",
-        'th.date':'Date', 'th.total':'Total', 'th.currency':'Currency',
+        'th.date':'Date', 'th.total':'Total', 'th.currency':'Currency', 'th.type':'Type',
         'th.category':'Category', 'th.counterparty':'Counterparty', 'th.comment':'Comment',
         'empty.title':'No transactions yet',
         'empty.text':'Create one or generate sample data on the New tab.',
@@ -270,7 +267,7 @@
         'cfg.text':'Set API_BASE in config.js to load transactions.',
         'err.title':"Couldn't load transactions",
         'err.text':'Check that the backend is running and reachable.',
-        'btn.send':'Send to Telegram', 'btn.clear':'Clear all',
+        'btn.clear':'Clear all',
         'confirm.clear':'Delete all transactions?',
         'toast.cleared':'All cleared', 'toast.error':'Something went wrong',
         'theme':'Theme'
@@ -278,7 +275,7 @@
       uk:{
         'tab.new':'Нова', 'tab.list':'Транзакції', 'tab.sheet':'Google Sheet',
         'table.title':'Транзакції', 'table.subtitle':'Усе, що ви додали.',
-        'th.date':'Дата', 'th.total':'Сума', 'th.currency':'Валюта',
+        'th.date':'Дата', 'th.total':'Сума', 'th.currency':'Валюта', 'th.type':'Тип',
         'th.category':'Категорія', 'th.counterparty':'Контрагент', 'th.comment':'Коментар',
         'empty.title':'Поки немає транзакцій',
         'empty.text':'Створіть або згенеруйте дані на вкладці «Нова».',
@@ -287,7 +284,7 @@
         'cfg.text':'Вкажіть API_BASE у config.js, щоб завантажити транзакції.',
         'err.title':'Не вдалося завантажити транзакції',
         'err.text':'Перевірте, що бекенд запущено та доступний.',
-        'btn.send':'Надіслати в Telegram', 'btn.clear':'Очистити все',
+        'btn.clear':'Очистити все',
         'confirm.clear':'Видалити всі транзакції?',
         'toast.cleared':'Очищено', 'toast.error':'Сталася помилка',
         'theme':'Тема'
@@ -429,6 +426,7 @@
           <td class="t-date">${fmtDate(tx.occured_at || tx.date)}</td>
           <td class="t-total">${fmtNum(tx.total)}</td>
           <td><span class="cur-chip">${escapeHtml(tx.currency)}</span></td>
+          <td>${tx.type ? `<span class="cur-chip">${escapeHtml(Lycee.pickName(tx.type, lang))}</span>` : '—'}</td>
           <td>${tx.category ? `<span class="cur-chip">${escapeHtml(Lycee.pickName(tx.category, lang))}</span>` : '—'}</td>
           <td>${escapeHtml(Lycee.pickName(tx.counterparty, lang) || '—')}</td>
           <td class="t-comment">${escapeHtml(tx.comment || '—')}</td>
@@ -482,12 +480,6 @@
           showToast(t('toast.cleared'));
         } catch(e){ console.error(e); showToast(t('toast.error')); }
       });
-    };
-
-    document.getElementById('sendBtn').onclick = () => {
-      if (!TX.length) return;
-      try { tg.sendData(JSON.stringify({ transactions: TX })); tg.close(); }
-      catch(e){ if (typeof tg.showAlert === 'function') tg.showAlert('Open inside Telegram to send.'); }
     };
 
     /* ---------------- Init ---------------- */

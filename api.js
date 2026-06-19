@@ -214,7 +214,11 @@
     var body = Object.assign({ user_id: userId }, data);
     return req('/transaction', { method: 'POST', body: JSON.stringify(body) });
   }
-  function deleteTransaction(id) { return req('/transaction/' + encodeURIComponent(id) + qp(), { method: 'DELETE' }); }
+  // DELETE /transaction expects a JSON body { id, user_id } (TransactionDelete schema)
+  function deleteTransaction(id) {
+    return req('/transaction', { method: 'DELETE', body: JSON.stringify({ id: Number(id), user_id: userId }) });
+  }
+  // DELETE /transactions takes only user_id (query param) — clears all for the user
   function clearTransactions() { return req('/transactions' + qp(), { method: 'DELETE' }); }
 
   /* -------- google sheet -------- */
