@@ -17,9 +17,5 @@
    ============================================================================ */
 window.LYCEE_CONFIG = {
   API_BASE: 'https://dominion-strenuous-wrongful.ngrok-free.dev',
-  DEV_USER_ID: 0,
-  // Set true to show an on-screen panel dumping the raw Telegram data (for
-  // debugging the user id on mobile, where there's no console). Also shows
-  // automatically when no Telegram id is found. Turn off once it works.
-  DEBUG: true
+  DEV_USER_ID: 0
 };
