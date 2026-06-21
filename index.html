@@ -189,6 +189,14 @@
     .btn-ghost svg{ width:18px; height:18px; }
     .hint{ color:var(--hint); font-size:12px; margin-top:14px; text-align:center; }
 
+    .or-divider{
+      display:flex; align-items:center; gap:14px; margin:24px 0 6px;
+      color:var(--hint); font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:.14em;
+    }
+    .or-divider::before, .or-divider::after{
+      content:""; flex:1; height:1px; background:var(--border);
+    }
+
     /* ---------- Transactions table ---------- */
     .head{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:6px; }
     .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -4px; }
@@ -326,6 +334,8 @@
 
           <button class="btn-gradient" id="createBtn" type="button" data-i18n="btn.create">Create transaction</button>
 
+          <div class="or-divider" data-i18n="divider.or">or</div>
+
           <label data-i18n="field.count">How many to generate</label>
           <select id="count">
             <option value="5">5</option>
@@ -429,7 +439,7 @@
         'field.category':'Category', 'field.counterparty':'Counterparty', 'field.comment':'Comment',
         'field.count':'How many to generate',
         'ph.date':'📅 Select date', 'ph.comment':'What was it for?', 'ph.select':'Select…',
-        'btn.create':'Create transaction', 'btn.random':'Generate random data',
+        'btn.create':'Create transaction', 'btn.random':'Generate random data', 'divider.or':'or',
         'toast.created':'Transaction added', 'toast.generated':'Random transactions generated',
         'toast.error':'Something went wrong',
         'alert.fill':'Please fill in date, total, type, category and counterparty.',
@@ -452,7 +462,7 @@
         'field.category':'Категорія', 'field.counterparty':'Контрагент', 'field.comment':'Коментар',
         'field.count':'Скільки згенерувати',
         'ph.date':'📅 Оберіть дату', 'ph.comment':'За що?', 'ph.select':'Оберіть…',
-        'btn.create':'Створити транзакцію', 'btn.random':'Згенерувати дані',
+        'btn.create':'Створити транзакцію', 'btn.random':'Згенерувати дані', 'divider.or':'Або',
         'toast.created':'Транзакцію додано', 'toast.generated':'Випадкові транзакції створено',
         'toast.error':'Сталася помилка',
         'alert.fill':'Вкажіть дату, суму, тип, категорію та контрагента.',
