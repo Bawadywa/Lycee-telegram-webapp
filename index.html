@@ -242,15 +242,18 @@
     }
     .tx-card::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:4px; }
     .tx-card.in::before{ background:linear-gradient(#4ade80,#2dd4bf); }
-    .tx-card.out::before{ background:linear-gradient(#a855f7,#7e22ce); }
+    .tx-card.out::before{ background:linear-gradient(#f87171,#ef4444); }
     .txc-top{ display:flex; align-items:center; gap:10px; }
     .txc-cp{ font-weight:700; font-size:15px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .txc-amt{ flex:none; font-size:17px; font-weight:800; white-space:nowrap; }
-    .txc-amt.in{ color:#4ade80; } .txc-amt.out{ color:#a855f7; }
-    .txc-row2{ display:flex; align-items:center; gap:10px; margin-top:6px; }
-    .txc-meta{ flex:1; min-width:0; font-size:12.5px; color:var(--hint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .txc-amt.in{ color:#4ade80; } .txc-amt.out{ color:#f87171; }
+    .txc-row2{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:7px; }
+    .txc-date{ font-size:12.5px; color:var(--hint); }
     .txc-acts{ flex:none; display:inline-flex; gap:2px; }
-    .txc-comment{ font-size:13px; margin-top:6px; word-break:break-word; }
+    .txc-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+    .txc-chip{ display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px;
+      border:1px solid var(--border); font-size:12px; font-weight:700; white-space:nowrap; }
+    .txc-comment{ font-size:13px; color:var(--hint); margin-top:9px; word-break:break-word; }
     /* Mobile: show cards, hide the table */
     @media (max-width:680px){
       .tx-cards{ display:flex; }
@@ -917,11 +920,12 @@
       document.getElementById('txCards').innerHTML = TX.map(tx => {
         const dir = txDir(tx);
         const sign = dir === 'in' ? '+' : '−';
-        const meta = [fmtDate(tx.occured_at || tx.date),
-          tx.type ? Lycee.pickName(tx.type, lang) : null,
-          tx.category ? Lycee.pickName(tx.category, lang) : null]
-          .filter(Boolean).map(escapeHtml).join(' · ');
         const cp = escapeHtml(Lycee.pickName(tx.counterparty, lang) || '—');
+        const date = escapeHtml(fmtDate(tx.occured_at || tx.date));
+        const chips = [
+          tx.type ? `<span class="txc-chip">${escapeHtml(Lycee.pickName(tx.type, lang))}</span>` : '',
+          tx.category ? `<span class="txc-chip">${escapeHtml(Lycee.pickName(tx.category, lang))}</span>` : ''
+        ].join('');
         const comment = tx.comment ? `<div class="txc-comment">${escapeHtml(tx.comment)}</div>` : '';
         return `
         <div class="tx-card ${dir}" data-id="${escapeHtml(tx.id)}">
@@ -930,12 +934,13 @@
             <span class="txc-amt ${dir}">${sign}${escapeHtml(curSym(tx.currency))}${fmtNum(tx.total)}</span>
           </div>
           <div class="txc-row2">
-            <span class="txc-meta">${meta}</span>
+            <span class="txc-date">${date}</span>
             <span class="txc-acts">
               <button class="edit" type="button" aria-label="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>
               <button class="del" type="button" aria-label="Delete">✕</button>
             </span>
           </div>
+          <div class="txc-chips">${chips}</div>
           ${comment}
         </div>`;
       }).join('');
@@ -1319,7 +1324,7 @@
         type:'bar',
         data:{ labels:a.labels, datasets:[
           { label:t('dash.income'),   data:a.inc, backgroundColor:'#4ade80', borderRadius:5, maxBarThickness:28 },
-          { label:t('dash.expenses'), data:a.exp, backgroundColor:'#a855f7', borderRadius:5, maxBarThickness:28 }
+          { label:t('dash.expenses'), data:a.exp, backgroundColor:'#f87171', borderRadius:5, maxBarThickness:28 }
         ]},
         options: dashAxisOpts(true)
       });
@@ -1388,7 +1393,7 @@
       const cash = a.cash.length ? a.cash[a.cash.length-1] : 0;
       const cards = [
         ['dash.kpi.income',   dashMoney(a.totIn, false),   '#4ade80'],
-        ['dash.kpi.expenses', dashMoney(a.totOut, false),  '#a855f7'],
+        ['dash.kpi.expenses', dashMoney(a.totOut, false),  '#f87171'],
         ['dash.kpi.net',      dashMoney(net, false),       '#2dd4bf'],
         ['dash.kpi.margin',   (margin*100).toFixed(1)+'%', '#56b4d8'],
         ['dash.kpi.cash',     dashMoney(cash, false),      '#6c9ce6'],
