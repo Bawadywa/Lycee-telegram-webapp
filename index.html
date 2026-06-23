@@ -7,6 +7,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="./config.js?v=22"></script>
   <script src="./api.js?v=22"></script>
+  <script src="./chart.umd.min.js?v=22"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -31,8 +32,8 @@
     *{ box-sizing:border-box; }
     html,body{ margin:0; }
 
-    /* Single-page app: full-height flex column so the Google Sheet view can fill
-       the viewport while the New / Transactions views scroll inside their area. */
+    /* Single-page app: full-height flex column; each view (New / Transactions /
+       Dashboard) scrolls inside its own area. */
     body{
       font-family:'Inter',system-ui,Arial,sans-serif;
       background:var(--bg);
@@ -108,9 +109,8 @@
     main{ flex:1 1 auto; min-height:0; display:flex; }
     .view{ flex:1 1 auto; min-height:0; width:100%; }
     .view[hidden]{ display:none !important; }
-    /* New + Transactions scroll inside their area; Sheet fills it for the embed. */
-    #view-new, #view-table{ overflow-y:auto; -webkit-overflow-scrolling:touch; }
-    #view-sheet{ display:flex; }
+    /* New / Transactions / Dashboard each scroll inside their own area. */
+    #view-new, #view-table, #view-dash{ overflow-y:auto; -webkit-overflow-scrolling:touch; }
     .col{ max-width:680px; margin-inline:auto; padding-bottom:24px; } /* narrow form column */
     #view-table .col{ max-width:100%; }                              /* table uses full width */
 
@@ -237,25 +237,6 @@
     }
     .btn-ghost-clear svg{ width:18px; height:18px; }
 
-    /* ---------- Google Sheet view ---------- */
-    .sheet-card{
-      flex:1 1 auto; min-height:0; display:flex;
-      background:var(--card_bg); border:1px solid var(--border);
-      border-radius:20px; padding:6px; overflow:hidden;
-      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-    }
-    .sheet-frame{ flex:1 1 auto; width:100%; min-height:0; border:none; border-radius:14px; background:#fff; }
-    .sheet-empty{
-      flex:1 1 auto; min-height:0; display:flex;
-      align-items:center; justify-content:center; text-align:center; padding:24px;
-    }
-    .sheet-state-inner{ display:flex; flex-direction:column; align-items:center; gap:12px; }
-    .sheet-empty .empty-emoji{ font-size:44px; }
-    .sheet-empty p{ color:var(--hint); font-size:14px; margin:0; max-width:320px; }
-    .sheet-spinner{ width:34px; height:34px; color:#2dd4bf; }
-    .spin{ animation:spin 1s linear infinite; }
-    @keyframes spin{ to{ transform:rotate(360deg); } }
-
     /* ---------- Toast ---------- */
     .toast{
       position:fixed; left:50%; bottom:24px;
@@ -265,6 +246,53 @@
       transition:opacity .25s, transform .25s; z-index:50; max-width:90vw; text-align:center;
     }
     .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+    /* ---------- Dashboard ---------- */
+    .dash-col{ max-width:980px; margin-inline:auto; padding-bottom:24px; }
+    .dash-filters{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
+    .dash-ctl{ flex:1 1 150px; min-width:140px; }
+    .dash-ctl > label{ margin:0 0 6px; }
+    .dash-ctl select{ width:100%; }
+    .chips-ctl{ margin-bottom:14px; }
+    .chips{ display:flex; gap:7px; flex-wrap:wrap; }
+    .chip{
+      font-size:12px; padding:6px 11px; border-radius:999px;
+      border:1px solid var(--border); background:var(--card_bg); color:var(--hint);
+      cursor:pointer; user-select:none; white-space:nowrap;
+      display:inline-flex; align-items:center; gap:6px;
+      transition:color .15s, background .15s, border-color .15s;
+    }
+    .chip .dot{ width:8px; height:8px; border-radius:50%; background:currentColor; }
+    .chip.on{ color:#fff; }
+    .chip:active{ transform:translateY(1px); }
+
+    /* KPI cards */
+    .kpis{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin:4px 0 16px; }
+    .kpi{
+      position:relative; overflow:hidden;
+      background:var(--card_bg); border:1px solid var(--border); border-radius:16px;
+      padding:14px 14px 12px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    }
+    .kpi::before{ content:""; position:absolute; left:0; top:0; height:3px; width:100%;
+      background:var(--accent, var(--grad)); }
+    .kpi .k-label{ font-size:10.5px; color:var(--hint); text-transform:uppercase; letter-spacing:.1em; font-weight:700; }
+    .kpi .k-val{ font-size:22px; font-weight:800; margin-top:6px; line-height:1.05; letter-spacing:-.5px; word-break:break-word; }
+
+    /* Chart grid */
+    .dash-grid{ display:grid; grid-template-columns:1fr; gap:12px; }
+    .dash-card{ padding:16px; }
+    .dash-card h3{ font-size:15px; font-weight:800; }
+    .dash-card .sub{ margin:2px 0 12px; font-size:12px; color:var(--hint); }
+    .dash-card .canvas-host{ position:relative; width:100%; height:240px; }
+    .dash-card.donut .canvas-host{ height:280px; }
+    .dash-card .canvas-host canvas{ display:block; }
+
+    @media (min-width:560px){ .kpis{ grid-template-columns:repeat(3,1fr); } }
+    @media (min-width:760px){
+      .dash-grid{ grid-template-columns:1fr 1fr; }
+      .dash-card.span2{ grid-column:span 2; }
+    }
+    @media (min-width:1100px){ .kpis{ grid-template-columns:repeat(6,1fr); } }
   </style>
 </head>
 <body data-scheme="dark">
@@ -288,7 +316,7 @@
       <span data-i18n="tab.list">Transactions</span>
       <span class="badge" id="countBadge">0</span>
     </button>
-    <button class="tab" type="button" data-view="sheet" data-i18n="tab.sheet">Google Sheet</button>
+    <button class="tab" type="button" data-view="dash" data-i18n="tab.dash">Dashboard</button>
   </nav>
 
   <main>
@@ -401,19 +429,66 @@
       </div>
     </section>
 
-    <!-- ============ GOOGLE SHEET ============ -->
-    <section class="view" id="view-sheet" hidden>
-      <div class="sheet-card">
-        <iframe id="sheetFrame" class="sheet-frame" title="Lycee Google Sheet" loading="lazy" style="display:none"></iframe>
-        <div id="sheetState" class="sheet-empty">
-          <div id="sheetLoading" class="sheet-state-inner">
-            <svg class="spin sheet-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/></svg>
-            <p data-i18n="sheet.loading">Loading…</p>
+    <!-- ============ DASHBOARD ============ -->
+    <section class="view" id="view-dash" hidden>
+      <div class="col dash-col">
+        <div class="dash-filters">
+          <div class="dash-ctl">
+            <label data-i18n="dash.f.currency">Currency</label>
+            <select id="dashCurrency"></select>
           </div>
-          <div id="sheetNoTx" class="sheet-state-inner" style="display:none">
-            <div class="empty-emoji">🧾</div>
-            <p data-i18n="sheet.notx">First, add some transactions please.</p>
+          <div class="dash-ctl">
+            <label data-i18n="dash.f.period">Period</label>
+            <select id="dashPeriod">
+              <option value="all" data-i18n="dash.period.all">All time</option>
+              <option value="3" data-i18n="dash.period.3">Last 3 months</option>
+              <option value="6" data-i18n="dash.period.6">Last 6 months</option>
+              <option value="12" data-i18n="dash.period.12">Last 12 months</option>
+              <option value="ytd" data-i18n="dash.period.ytd">This year</option>
+            </select>
           </div>
+        </div>
+        <div class="dash-ctl chips-ctl">
+          <label data-i18n="dash.f.cats">Categories</label>
+          <div class="chips" id="dashCats"></div>
+        </div>
+
+        <section class="kpis" id="dashKpis"></section>
+
+        <div id="dashContent">
+          <div class="dash-grid">
+            <div class="card dash-card span2">
+              <h3 data-i18n="dash.c.ie">Income vs expenses</h3>
+              <p class="sub" data-i18n="dash.c.ie.sub">By month</p>
+              <div class="canvas-host"><canvas id="cIE"></canvas></div>
+            </div>
+            <div class="card dash-card">
+              <h3 data-i18n="dash.c.net">Net profit</h3>
+              <p class="sub" data-i18n="dash.c.net.sub">Monthly dynamics</p>
+              <div class="canvas-host"><canvas id="cNet"></canvas></div>
+            </div>
+            <div class="card dash-card">
+              <h3 data-i18n="dash.c.cash">Cash balance</h3>
+              <p class="sub" data-i18n="dash.c.cash.sub">Cumulative</p>
+              <div class="canvas-host"><canvas id="cCash"></canvas></div>
+            </div>
+            <div class="card dash-card donut">
+              <h3 data-i18n="dash.c.exp">Expense structure</h3>
+              <p class="sub" data-i18n="dash.c.exp.sub">By category</p>
+              <div class="canvas-host"><canvas id="cExp"></canvas></div>
+            </div>
+            <div class="card dash-card donut">
+              <h3 data-i18n="dash.c.inc">Income structure</h3>
+              <p class="sub" data-i18n="dash.c.inc.sub">By category</p>
+              <div class="canvas-host"><canvas id="cInc"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="dashEmpty" class="empty" style="display:none">
+          <div class="empty-emoji">📊</div>
+          <h3 data-i18n="dash.empty.title">No data yet</h3>
+          <p data-i18n="dash.empty.text">Add transactions to see your dashboard.</p>
         </div>
       </div>
     </section>
@@ -433,7 +508,7 @@
     /* ---------------- i18n (merged across all three views) ---------------- */
     const dict = {
       en:{
-        'tab.new':'New', 'tab.list':'Transactions', 'tab.sheet':'Google Sheet',
+        'tab.new':'New', 'tab.list':'Transactions',
         'form.title':'New transaction', 'form.subtitle':'Add an entry to your ledger.',
         'field.date':'Date', 'field.total':'Total', 'field.currency':'Currency', 'field.type':'Type',
         'field.category':'Category', 'field.counterparty':'Counterparty', 'field.comment':'Comment',
@@ -452,11 +527,24 @@
         'err.title':"Couldn't load transactions", 'err.text':'Check that the backend is running and reachable.',
         'btn.clear':'Clear all', 'confirm.clear':'Delete all transactions?',
         'toast.cleared':'All cleared',
-        'sheet.loading':'Loading…', 'sheet.notx':'First, add some transactions please.',
+        'tab.dash':'Dashboard',
+        'dash.f.currency':'Currency', 'dash.f.period':'Period', 'dash.f.cats':'Categories',
+        'dash.period.all':'All time', 'dash.period.3':'Last 3 months', 'dash.period.6':'Last 6 months',
+        'dash.period.12':'Last 12 months', 'dash.period.ytd':'This year',
+        'dash.kpi.income':'Income', 'dash.kpi.expenses':'Expenses', 'dash.kpi.net':'Net profit',
+        'dash.kpi.margin':'Margin', 'dash.kpi.cash':'Cash balance', 'dash.kpi.count':'Transactions',
+        'dash.income':'Income', 'dash.expenses':'Expenses',
+        'dash.c.ie':'Income vs expenses', 'dash.c.ie.sub':'By month',
+        'dash.c.net':'Net profit', 'dash.c.net.sub':'Monthly dynamics',
+        'dash.c.cash':'Cash balance', 'dash.c.cash.sub':'Cumulative',
+        'dash.c.exp':'Expense structure', 'dash.c.exp.sub':'By category',
+        'dash.c.inc':'Income structure', 'dash.c.inc.sub':'By category',
+        'dash.empty.title':'No data yet', 'dash.empty.text':'Add transactions to see your dashboard.',
+        'dash.uncat':'Uncategorized', 'dash.none':'No data',
         'theme':'Theme'
       },
       uk:{
-        'tab.new':'Нова', 'tab.list':'Транзакції', 'tab.sheet':'Google Sheet',
+        'tab.new':'Нова', 'tab.list':'Транзакції',
         'form.title':'Нова транзакція', 'form.subtitle':'Додайте запис до вашого журналу.',
         'field.date':'Дата', 'field.total':'Сума', 'field.currency':'Валюта', 'field.type':'Тип',
         'field.category':'Категорія', 'field.counterparty':'Контрагент', 'field.comment':'Коментар',
@@ -475,7 +563,20 @@
         'err.title':'Не вдалося завантажити транзакції', 'err.text':'Перевірте, що бекенд запущено та доступний.',
         'btn.clear':'Очистити все', 'confirm.clear':'Видалити всі транзакції?',
         'toast.cleared':'Очищено',
-        'sheet.loading':'Завантаження…', 'sheet.notx':'Спершу додайте кілька транзакцій, будь ласка.',
+        'tab.dash':'Дашборд',
+        'dash.f.currency':'Валюта', 'dash.f.period':'Період', 'dash.f.cats':'Категорії',
+        'dash.period.all':'Весь час', 'dash.period.3':'Останні 3 міс.', 'dash.period.6':'Останні 6 міс.',
+        'dash.period.12':'Останні 12 міс.', 'dash.period.ytd':'Цей рік',
+        'dash.kpi.income':'Доходи', 'dash.kpi.expenses':'Витрати', 'dash.kpi.net':'Чистий прибуток',
+        'dash.kpi.margin':'Рентабельність', 'dash.kpi.cash':'Залишок коштів', 'dash.kpi.count':'Транзакції',
+        'dash.income':'Доходи', 'dash.expenses':'Витрати',
+        'dash.c.ie':'Доходи та витрати', 'dash.c.ie.sub':'По місяцях',
+        'dash.c.net':'Чистий прибуток', 'dash.c.net.sub':'Динаміка по місяцях',
+        'dash.c.cash':'Залишок коштів', 'dash.c.cash.sub':'Накопичувально',
+        'dash.c.exp':'Структура витрат', 'dash.c.exp.sub':'За категоріями',
+        'dash.c.inc':'Структура доходів', 'dash.c.inc.sub':'За категоріями',
+        'dash.empty.title':'Поки немає даних', 'dash.empty.text':'Додайте транзакції, щоб побачити дашборд.',
+        'dash.uncat':'Без категорії', 'dash.none':'Немає даних',
         'theme':'Тема'
       }
     };
@@ -579,17 +680,14 @@
     const views = {
       new:   document.getElementById('view-new'),
       table: document.getElementById('view-table'),
-      sheet: document.getElementById('view-sheet')
+      dash:  document.getElementById('view-dash')
     };
     const tabBtns = Array.from(document.querySelectorAll('.tab'));
     function showView(name){
       Object.keys(views).forEach(k => { views[k].hidden = (k !== name); });
       tabBtns.forEach(b => b.classList.toggle('active', b.dataset.view === name));
       if (name === 'table') reconcileTable();
-      if (name === 'sheet'){
-        if (!sheetShown) ensureSheetLoaded();
-        else if (frameStale) reloadSheetFrame(); // refresh stale data on reopen
-      }
+      if (name === 'dash'){ reconcileTable(); dashShow(); }
     }
     tabBtns.forEach(b => { b.onclick = () => showView(b.dataset.view); });
 
@@ -624,6 +722,7 @@
 
     function renderTable(){
       document.getElementById('countBadge').textContent = TX.length;
+      try { dashOnData(); } catch(e){}
       const content = document.getElementById('content');
       const empty = document.getElementById('empty');
       if (!txLoaded) return; // nothing decided yet (no cache) → leave as-is until first fetch
@@ -676,7 +775,6 @@
         Lycee.setCachedTransactions(TX);
         haptic('warning');
         renderTable();
-        refreshSheetData();       // update the existing sheet in place (if any)
       } catch(err){ console.error(err); btn.disabled = false; showToast(t('toast.error')); }
     });
 
@@ -688,7 +786,6 @@
           TX = []; Lycee.setCachedTransactions(TX);
           haptic('success');
           renderTable();
-          refreshSheetData();       // update the existing sheet in place (if any)
           showToast(t('toast.cleared'));
         } catch(e){ console.error(e); showToast(t('toast.error')); }
       });
@@ -724,7 +821,6 @@
         document.getElementById('comment').value = '';
         typeSel.selectedIndex = 0; catSel.selectedIndex = 0; cpSel.selectedIndex = 0;
         await reconcileTable();   // refresh cache + badge
-        refreshSheetData();       // update the existing sheet in place (if any)
         showToast(t('toast.created'));
       } catch(e){ console.error(e); haptic('error'); notify(t('toast.error')); }
       finally { createBtn.disabled = false; }
@@ -739,96 +835,272 @@
         await Lycee.generateRandom(count);
         haptic('success');
         await reconcileTable();
-        refreshSheetData();       // update the existing sheet in place (if any)
         showToast(t('toast.generated'));
         showView('table');        // show the freshly generated rows
       } catch(e){ console.error(e); haptic('error'); notify(t('toast.error')); }
       finally { randomBtn.disabled = false; }
     };
 
-    /* ---------------- Google Sheet (lazy, one per user, persists across tabs) ----------------
-       The BACKEND is the single source of truth for whether a sheet exists. We do
-       NOT cache the sheet URL on the client — a stale cache was showing trashed /
-       non-existent sheets when the DB was empty. We always GET from the backend. */
-    const frame      = document.getElementById('sheetFrame');
-    const stateBox   = document.getElementById('sheetState');
-    const loadingBox = document.getElementById('sheetLoading');
-    const noTxBox    = document.getElementById('sheetNoTx');
-    // One-time cleanup of the old client-side cache from previous versions.
-    try { localStorage.removeItem('lycee_sheet_url_' + (Lycee.userId || 'anon')); } catch(e){}
+    /* ---------------- Dashboard (live charts built from the same TX list) ----------------
+       Mirrors the xlsx "Огляд" sheet: income vs expenses by month, net-profit dynamics,
+       cumulative cash balance, and expense/income structure by category. Everything is
+       derived from the live transactions, so it updates the moment a tx is added/removed. */
+    const DASH_PALETTE = ['#4ade80','#2dd4bf','#a855f7','#56b4d8','#f59e0b','#f472b6','#6c9ce6','#34d399','#fb923c','#e879f9','#facc15','#38bdf8'];
+    const CUR_SYMBOL = { USD:'$', EUR:'€', UAH:'₴', GBP:'£', PLN:'zł' };
+    const dashState = { currency:null, period:'all', cats:null }; // cats:null = all categories
+    let dashCharts = {};
 
-    let sheetShown = false;    // a sheet is currently embedded
-    let sheetLoading = false;  // a load is in flight
-    let sheetReady = false;    // the sheet EXISTS on the backend (confirmed/created this session)
-    let pendingRefresh = false;// a tx change happened before the sheet existed → refresh once it does
-    let sheetUrl = '';         // the clean (un-busted) published URL currently embedded
-    let frameStale = false;    // data changed → the embedded iframe is showing old data
-
-    function showSheetLoading(){ frame.style.display='none'; stateBox.style.display='flex'; loadingBox.style.display=''; noTxBox.style.display='none'; }
-    function showSheetNoTx(){ frame.style.display='none'; stateBox.style.display='flex'; loadingBox.style.display='none'; noTxBox.style.display=''; }
-    function showSheetFrame(url){
-      sheetUrl = url;
-      if (frame.getAttribute('src') !== url) frame.src = url; // first embed only (no needless reload on tab switch)
-      frame.style.display=''; stateBox.style.display='none'; sheetShown = true; frameStale = false;
-    }
-    // Force a fresh load of the embed (like Ctrl+F5) by busting the URL cache.
-    function reloadSheetFrame(){
-      if (!sheetUrl) return;
-      frame.src = sheetUrl + (sheetUrl.indexOf('?') >= 0 ? '&' : '?') + 'r=' + Date.now();
-      frame.style.display=''; stateBox.style.display='none'; sheetShown = true; frameStale = false;
+    // Money formatter respecting the active currency + locale. `full`=exact (tooltips/KPIs),
+    // otherwise compact (axes).
+    function dashMoney(v, full){
+      const cur = dashState.currency || '';
+      const sym = CUR_SYMBOL[cur] || (cur ? cur + ' ' : '');
+      const sign = v < 0 ? '-' : '';
+      const a = Math.abs(v);
+      if (!full){
+        if (a >= 1e6) return sign + sym + (a/1e6).toFixed(2) + 'M';
+        if (a >= 1e3) return sign + sym + (a/1e3).toFixed(1) + 'K';
+        return sign + sym + Math.round(a);
+      }
+      try { return sign + sym + new Intl.NumberFormat(locale(), { maximumFractionDigits:2 }).format(a); }
+      catch(e){ return sign + sym + a.toFixed(2); }
     }
 
-    // On any transaction change, refresh the EXISTING sheet's data in place (clear → fill).
-    // HARD GUARD: never call clear/fill before the sheet has actually been generated.
-    // If the sheet doesn't exist yet, just remember to refresh once it's created.
-    // Serialized + coalesced so rapid changes don't interleave clear/fill calls.
-    let sheetRefreshing = false, sheetDirty = false;
-    async function refreshSheetData(){
-      if (!Lycee.configured) return;
-      if (!sheetReady){ pendingRefresh = true; return; } // not generated yet → defer, no requests
-      if (sheetRefreshing){ sheetDirty = true; return; }
-      sheetRefreshing = true;
-      try {
-        do {
-          sheetDirty = false;
-          await Lycee.clearSheet();
-          await Lycee.fillSheet();
-        } while (sheetDirty);
-        // Data updated → the embed is now stale. Reload it (cache-busted) if the
-        // user is looking at it; otherwise refresh it next time they open the tab.
-        frameStale = true;
-        if (!views.sheet.hidden) reloadSheetFrame();
-      } catch(e){ console.error('[Lycee] sheet refresh failed', e); }
-      finally { sheetRefreshing = false; }
+    // Transaction type as a lowercased "UK EN" string for keyword matching.
+    function typeStr(tx){
+      const ty = tx.type || {};
+      return ((ty.name_uk || '') + ' ' + (ty.name_en || '')).toLowerCase();
+    }
+    // P&L (accrual) classification — what counts as operating income / expense.
+    // Financing & transfers (loans, investments, dividends, and the settlement of
+    // receivables/payables) are NOT P&L, so they return '' and stay out of the
+    // income/expense charts. An accrued payable IS a cost incurred → expense.
+    function txPL(tx){
+      const s = typeStr(tx);
+      if (/дохід|дохо|income|revenue|продаж|продано|sold|надходж/.test(s)) return 'income';
+      if (/витрат|expense|cost|собівар/.test(s)) return 'expense';
+      if (/(кредиторк|payable).*(нарахован|accru)|(нарахован|accru).*(кредиторк|payable)/.test(s)) return 'expense';
+      return '';
+    }
+    // Cash-flow classification — did money actually move, and which way.
+    // Accrued (нараховано / accrued) entries moved no cash yet → ''.
+    function txCash(tx){
+      const s = typeStr(tx);
+      if (/нарахован|accru/.test(s)) return '';
+      if (/дохід|дохо|income|revenue|продаж|продано|sold|надходж|отримано|отримання|received|receiv|дебітор|інвестиц|investment/.test(s)) return 'in';
+      if (/витрат|expense|cost|сплачен|виплачен|оплачен|paid|дивіденд|dividend|погашен/.test(s)) return 'out';
+      return 'out';
+    }
+    function txISO(tx){ return String(tx.occured_at || tx.date || '').slice(0,10); }
+    function txMonth(tx){ const d = txISO(tx); return d ? d.slice(0,7) : ''; } // YYYY-MM
+    function monthLabel(key){
+      const p = key.split('-'); const d = new Date(+p[0], (+p[1]||1)-1, 1);
+      try { return new Intl.DateTimeFormat(locale(), { month:'short', year:'2-digit' }).format(d); }
+      catch(e){ return key; }
+    }
+    function catName(tx){ return Lycee.pickName(tx.category, lang) || t('dash.uncat'); }
+
+    function dashCurrencies(){
+      const m = {};
+      TX.forEach(tx => { const c = tx.currency || '—'; m[c] = (m[c]||0) + 1; });
+      return Object.keys(m).sort((a,b) => m[b] - m[a]); // most-used first
+    }
+    function dashRows(){
+      let rows = TX.filter(tx => (tx.currency || '—') === dashState.currency);
+      if (dashState.period !== 'all'){
+        const now = new Date();
+        const from = dashState.period === 'ytd'
+          ? new Date(now.getFullYear(), 0, 1)
+          : new Date(now.getFullYear(), now.getMonth() - (parseInt(dashState.period,10) - 1), 1);
+        const fk = from.getFullYear() + '-' + String(from.getMonth()+1).padStart(2,'0');
+        rows = rows.filter(tx => txMonth(tx) >= fk);
+      }
+      if (dashState.cats) rows = rows.filter(tx => dashState.cats.has(catName(tx)));
+      return rows;
     }
 
-    async function loadSheet(){
-      showSheetLoading();
-      if (!Lycee.configured) return;
-      try {
-        // GET from the backend (source of truth) — reuse the sheet only if it exists there.
-        const sheetRes = await Lycee.getSheetUrl();
-        let url = sheetRes && sheetRes.url;
-        if (url){
-          sheetReady = true; showSheetFrame(url);
-          if (pendingRefresh){ pendingRefresh = false; refreshSheetData(); } // catch up stale data
-          return;
+    function dashSyncControls(){
+      const curs = dashCurrencies();
+      if (!dashState.currency || curs.indexOf(dashState.currency) === -1) dashState.currency = curs[0] || null;
+      const selC = document.getElementById('dashCurrency');
+      selC.innerHTML = curs.map(c => `<option value="${esc(c)}" ${c===dashState.currency?'selected':''}>${esc(c)}</option>`).join('');
+      document.getElementById('dashPeriod').value = dashState.period;
+
+      // Category chips reflect the categories present in the selected currency.
+      const inCur = TX.filter(tx => (tx.currency || '—') === dashState.currency);
+      const cats = Array.from(new Set(inCur.map(catName))).sort((a,b)=>a.localeCompare(b));
+      const host = document.getElementById('dashCats');
+      host.innerHTML = cats.map((c,i) => {
+        const on = !dashState.cats || dashState.cats.has(c);
+        const col = DASH_PALETTE[i % DASH_PALETTE.length];
+        return `<div class="chip ${on?'on':''}" data-cat="${esc(c)}" style="${on?`background:${col};border-color:${col}`:`color:${col}`}"><span class="dot"></span>${esc(c)}</div>`;
+      }).join('');
+      host.querySelectorAll('.chip').forEach(ch => ch.onclick = () => {
+        if (!dashState.cats) dashState.cats = new Set(cats);
+        const c = ch.dataset.cat;
+        if (dashState.cats.has(c)){ if (dashState.cats.size > 1) dashState.cats.delete(c); }
+        else dashState.cats.add(c);
+        if (dashState.cats.size === cats.length) dashState.cats = null; // all selected = no filter
+        dashSyncControls(); renderDashboard();
+      });
+    }
+
+    function dashAgg(){
+      const rows = dashRows();
+      const monthsObj = {};
+      rows.forEach(tx => { const k = txMonth(tx); if (k) monthsObj[k] = true; });
+      const months = Object.keys(monthsObj).sort();
+      const inc = {}, exp = {}, cashNet = {};
+      months.forEach(k => { inc[k] = 0; exp[k] = 0; cashNet[k] = 0; });
+      const expCat = {}, incCat = {}; let totIn = 0, totOut = 0;
+      rows.forEach(tx => {
+        const k = txMonth(tx); if (!k) return;
+        const amt = Math.abs(Number(tx.total) || 0);
+        const c = catName(tx);
+        // Income / expense charts: operating P&L only.
+        const pl = txPL(tx);
+        if (pl === 'income'){ inc[k] += amt; totIn += amt; incCat[c] = (incCat[c]||0) + amt; }
+        else if (pl === 'expense'){ exp[k] += amt; totOut += amt; expCat[c] = (expCat[c]||0) + amt; }
+        // Cash-balance chart: every realised cash movement (incl. loans, dividends…).
+        const cd = txCash(tx);
+        if (cd === 'in') cashNet[k] += amt; else if (cd === 'out') cashNet[k] -= amt;
+      });
+      const incA = months.map(k => inc[k]), expA = months.map(k => exp[k]);
+      const net = months.map((k,i) => incA[i] - expA[i]);
+      let run = 0; const cash = months.map(k => (run += cashNet[k]));
+      return { labels: months.map(monthLabel), inc: incA, exp: expA, net, cash, totIn, totOut, expCat, incCat, count: rows.length };
+    }
+
+    function dashTooltip(extra){
+      return Object.assign({
+        backgroundColor:'#1c1c1e', borderColor:'rgba(255,255,255,.12)', borderWidth:1,
+        padding:10, titleColor:'#fff', bodyColor:'#cbd5e1', usePointStyle:true
+      }, extra || {});
+    }
+    function dashAxisOpts(showLegend){
+      return {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{
+          legend:{ display:!!showLegend, position:'top', align:'end',
+            labels:{ usePointStyle:true, boxWidth:8, padding:12, font:{ size:11 }, color:'#cbd5e1' } },
+          tooltip: dashTooltip({ callbacks:{ label:c => ' ' + c.dataset.label + ': ' + dashMoney(c.parsed.y, true) } })
+        },
+        scales:{
+          x:{ grid:{ display:false }, ticks:{ color:'#a1a1aa', font:{ size:11 } } },
+          y:{ grid:{ color:'rgba(255,255,255,.07)' }, ticks:{ color:'#a1a1aa', font:{ size:11 }, callback:v => dashMoney(v, false) } }
         }
-        // No sheet in the DB → it does NOT exist. Create once, only if there's data.
-        sheetReady = false;
-        const txs = (TX && TX.length) ? TX : (await Lycee.getTransactions());
-        if (!txs || !txs.length){ showSheetNoTx(); return; }
-        const res = await Lycee.createSheet();
-        url = res && res.url;
-        if (url){ sheetReady = true; pendingRefresh = false; showSheetFrame(url); }
-        else showSheetLoading();
-      } catch(e){ console.error(e); showSheetLoading(); }
+      };
     }
-    async function ensureSheetLoaded(){
-      if (sheetShown || sheetLoading) return; // already embedded → leave it untouched
-      sheetLoading = true;
-      try { await loadSheet(); } finally { sheetLoading = false; }
+    function dashDonutOpts(){
+      return {
+        responsive:true, maintainAspectRatio:false, cutout:'60%',
+        plugins:{
+          legend:{ position:'bottom', labels:{ usePointStyle:true, boxWidth:8, padding:10, font:{ size:11 }, color:'#cbd5e1' } },
+          tooltip: dashTooltip({ callbacks:{ label:c => {
+            const tot = c.dataset.data.reduce((a,b)=>a+b,0) || 1;
+            return ' ' + c.label + ': ' + dashMoney(c.parsed, true) + ' (' + (c.parsed/tot*100).toFixed(1) + '%)';
+          } } })
+        }
+      };
     }
+    function lineGradient(canvas, color){
+      const g = canvas.getContext('2d').createLinearGradient(0, 0, 0, 230);
+      g.addColorStop(0, color + '55'); g.addColorStop(1, color + '05'); return g;
+    }
+    function buildDonut(canvasId, map, key){
+      const e = Object.entries(map).sort((a,b)=>b[1]-a[1]);
+      let labels, data, colors;
+      if (!e.length){ labels = [t('dash.none')]; data = [1]; colors = ['rgba(255,255,255,.10)']; }
+      else { labels = e.map(x=>x[0]); data = e.map(x=>x[1]); colors = e.map((x,i)=>DASH_PALETTE[i%DASH_PALETTE.length]); }
+      dashCharts[key] = new Chart(document.getElementById(canvasId), {
+        type:'doughnut',
+        data:{ labels, datasets:[{ data, backgroundColor:colors, borderColor:'#0f0f10', borderWidth:2, hoverOffset:6 }] },
+        options: dashDonutOpts()
+      });
+    }
+
+    function renderDashKpis(a){
+      const net = a.totIn - a.totOut;
+      const margin = a.totIn ? net / a.totIn : 0;
+      const cash = a.cash.length ? a.cash[a.cash.length-1] : 0;
+      const cards = [
+        ['dash.kpi.income',   dashMoney(a.totIn, false),   '#4ade80'],
+        ['dash.kpi.expenses', dashMoney(a.totOut, false),  '#a855f7'],
+        ['dash.kpi.net',      dashMoney(net, false),       '#2dd4bf'],
+        ['dash.kpi.margin',   (margin*100).toFixed(1)+'%', '#56b4d8'],
+        ['dash.kpi.cash',     dashMoney(cash, false),      '#6c9ce6'],
+        ['dash.kpi.count',    String(a.count),             '#a1a1aa']
+      ];
+      document.getElementById('dashKpis').innerHTML = cards.map(([k,val,acc]) =>
+        `<div class="kpi" style="--accent:${acc}"><div class="k-label">${esc(t(k))}</div><div class="k-val">${esc(val)}</div></div>`
+      ).join('');
+    }
+
+    function renderDashboard(){
+      if (!window.Chart) return;
+      const empty = document.getElementById('dashEmpty');
+      const content = document.getElementById('dashContent');
+      const kpis = document.getElementById('dashKpis');
+      Object.values(dashCharts).forEach(c => { try { c.destroy(); } catch(e){} });
+      dashCharts = {};
+
+      if (!TX.length || !dashState.currency){
+        content.style.display = 'none'; kpis.style.display = 'none'; empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none'; content.style.display = 'block'; kpis.style.display = '';
+
+      const a = dashAgg();
+      renderDashKpis(a);
+      Chart.defaults.font.family = "Inter, system-ui, sans-serif";
+      Chart.defaults.color = '#a1a1aa';
+
+      // Income vs expenses (grouped bars)
+      dashCharts.ie = new Chart(document.getElementById('cIE'), {
+        type:'bar',
+        data:{ labels:a.labels, datasets:[
+          { label:t('dash.income'),   data:a.inc, backgroundColor:'#4ade80', borderRadius:5, maxBarThickness:28 },
+          { label:t('dash.expenses'), data:a.exp, backgroundColor:'#a855f7', borderRadius:5, maxBarThickness:28 }
+        ]},
+        options: dashAxisOpts(true)
+      });
+
+      // Net profit (line)
+      const netCanvas = document.getElementById('cNet');
+      dashCharts.net = new Chart(netCanvas, {
+        type:'line',
+        data:{ labels:a.labels, datasets:[{ label:t('dash.c.net'), data:a.net,
+          borderColor:'#2dd4bf', backgroundColor:lineGradient(netCanvas,'#2dd4bf'),
+          fill:true, tension:.35, borderWidth:3, pointRadius:3, pointBackgroundColor:'#2dd4bf', pointHoverRadius:6 }] },
+        options: dashAxisOpts(false)
+      });
+
+      // Cumulative cash balance (line)
+      const cashCanvas = document.getElementById('cCash');
+      dashCharts.cash = new Chart(cashCanvas, {
+        type:'line',
+        data:{ labels:a.labels, datasets:[{ label:t('dash.c.cash'), data:a.cash,
+          borderColor:'#6c9ce6', backgroundColor:lineGradient(cashCanvas,'#6c9ce6'),
+          fill:true, tension:.35, borderWidth:3, pointRadius:3, pointBackgroundColor:'#6c9ce6', pointHoverRadius:6 }] },
+        options: dashAxisOpts(false)
+      });
+
+      buildDonut('cExp', a.expCat, 'exp');
+      buildDonut('cInc', a.incCat, 'inc');
+    }
+
+    // Called whenever the TX list changes (or language switches). Repaints live if the
+    // dashboard is on screen; otherwise the next dashShow() rebuilds it.
+    function dashOnData(){
+      if (!views.dash || views.dash.hidden) return;
+      dashSyncControls(); renderDashboard();
+    }
+    // Called when the dashboard tab becomes visible (canvases now have a size).
+    function dashShow(){ dashSyncControls(); renderDashboard(); }
+
+    document.getElementById('dashCurrency').onchange = (e) => { dashState.currency = e.target.value; dashState.cats = null; dashSyncControls(); renderDashboard(); };
+    document.getElementById('dashPeriod').onchange   = (e) => { dashState.period = e.target.value; renderDashboard(); };
 
     /* ---------------- Init ---------------- */
     applyI18n();
