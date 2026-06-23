@@ -243,9 +243,11 @@
           (sel && iso === toISO(sel) ? ' selected' : '') + (iso === toISO(today) ? ' today' : '');
         html += '<div class="' + cls + '" data-iso="' + iso + '">' + day + '</div>';
       }
-      // Pad to a constant 6 rows (42 cells) so the panel height never changes between
-      // months — avoids the resize jump / overflow when navigating prev/next.
-      for (var tz = startDow + daysInMonth; tz < 42; tz++) html += '<div class="ui-cal-day empty"></div>';
+      // Pad only the LAST partial week so the final row is full-width — but do NOT force
+      // a fixed 6 rows (that left empty rows + dead space at the bottom). The panel sizes
+      // to the actual number of weeks; the vertical clamp in positionPop handles overflow.
+      var trailing = (7 - ((startDow + daysInMonth) % 7)) % 7;
+      for (var tz = 0; tz < trailing; tz++) html += '<div class="ui-cal-day empty"></div>';
       html += '</div><div class="ui-cal-foot"><button type="button" data-act="clear"></button>' +
         '<button type="button" data-act="today"></button></div>';
       pop.innerHTML = html;
