@@ -43,10 +43,14 @@
   window.addEventListener('scroll', function () { if (openCtrl) openCtrl.reposition(); }, true);
 
   // Position a fixed popup under (or above, if no room) the trigger.
+  // Zoom-aware: on large screens index.html applies `body{ zoom:N }`. getBoundingClientRect
+  // and innerWidth/Height are VISUAL px, but a position:fixed popup inside the zoomed body has
+  // its top/left multiplied by N — so we compute everything in visual px, then divide by N.
   function positionPop(trigger, pop, matchWidth) {
-    var r = trigger.getBoundingClientRect();
-    if (matchWidth) pop.style.width = r.width + 'px';
-    var popH = pop.offsetHeight, popW = pop.offsetWidth;
+    var z = parseFloat(getComputedStyle(document.body).zoom) || 1;
+    var r = trigger.getBoundingClientRect(); // visual px
+    if (matchWidth) pop.style.width = (r.width / z) + 'px';
+    var popH = pop.offsetHeight * z, popW = pop.offsetWidth * z; // visual size
     var spaceBelow = window.innerHeight - r.bottom;
     var top = (spaceBelow < popH + 10 && r.top > popH + 10) ? (r.top - popH - 6) : (r.bottom + 6);
     var left = r.left;
@@ -55,8 +59,8 @@
     // Clamp vertically so a tall popup (e.g. a 6-row month) never runs off-screen.
     if (top + popH > window.innerHeight - 8) top = window.innerHeight - 8 - popH;
     if (top < 8) top = 8;
-    pop.style.left = left + 'px';
-    pop.style.top = top + 'px';
+    pop.style.left = (left / z) + 'px';
+    pop.style.top = (top / z) + 'px';
   }
 
   /* ----------------------------- custom <select> ----------------------------- */

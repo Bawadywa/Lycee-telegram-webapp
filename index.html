@@ -233,6 +233,30 @@
     .edit svg{ width:16px; height:16px; display:block; }
     th.act, td.act{ width:64px; text-align:right; }
 
+    /* ---------- Transaction cards (mobile) ---------- */
+    .tx-cards{ display:none; flex-direction:column; gap:10px; }
+    .tx-card{
+      position:relative; overflow:hidden; min-width:0;
+      background:var(--card_bg); border:1px solid var(--border); border-radius:16px;
+      padding:13px 14px 13px 18px;
+    }
+    .tx-card::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:4px; }
+    .tx-card.in::before{ background:linear-gradient(#4ade80,#2dd4bf); }
+    .tx-card.out::before{ background:linear-gradient(#a855f7,#7e22ce); }
+    .txc-top{ display:flex; align-items:center; gap:10px; }
+    .txc-cp{ font-weight:700; font-size:15px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .txc-amt{ flex:none; font-size:17px; font-weight:800; white-space:nowrap; }
+    .txc-amt.in{ color:#4ade80; } .txc-amt.out{ color:#a855f7; }
+    .txc-row2{ display:flex; align-items:center; gap:10px; margin-top:6px; }
+    .txc-meta{ flex:1; min-width:0; font-size:12.5px; color:var(--hint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .txc-acts{ flex:none; display:inline-flex; gap:2px; }
+    .txc-comment{ font-size:13px; margin-top:6px; word-break:break-word; }
+    /* Mobile: show cards, hide the table */
+    @media (max-width:680px){
+      .tx-cards{ display:flex; }
+      #view-table .table-wrap{ display:none; }
+    }
+
     /* Empty / status state (transactions) */
     .empty{ text-align:center; padding:42px 16px 30px; }
     .empty-emoji{ font-size:40px; }
@@ -386,6 +410,12 @@
     .ui-cal-foot button{ background:transparent; border:none; color:#2dd4bf; font-family:inherit;
       font-weight:700; font-size:13px; cursor:pointer; padding:6px 8px; border-radius:8px; transition:background-color .12s; }
     .ui-cal-foot button:hover{ background:rgba(45,212,191,.12); }
+
+    /* ---------- Large screens (2K / fullscreen desktop): scale the whole UI up ----------
+       `zoom` enlarges everything uniformly; the height is divided by the same factor so
+       the fixed full-height (100dvh) flex layout stays exactly one screen tall (no scroll). */
+    @media (min-width:1600px){ body{ zoom:1.25; height:calc(100dvh / 1.25); } }
+    @media (min-width:2200px){ body{ zoom:1.5;  height:calc(100dvh / 1.5);  } }
   </style>
 </head>
 <body data-scheme="dark">
@@ -492,6 +522,9 @@
           </div>
 
           <div id="content" style="display:none">
+            <!-- Card list (mobile) -->
+            <div id="txCards" class="tx-cards"></div>
+            <!-- Table (desktop) -->
             <div class="table-wrap">
               <table>
                 <thead>
@@ -619,7 +652,7 @@
     /* ---------------- i18n (merged across all three views) ---------------- */
     const dict = {
       en:{
-        'tab.new':'Add transaction', 'tab.list':'Transactions',
+        'tab.new':'Add', 'tab.list':'Transactions',
         'form.title':'New transaction', 'form.subtitle':'Add an entry to your ledger.',
         'form.edit.title':'Edit transaction', 'form.edit.subtitle':'Update this entry.',
         'btn.save':'Save changes', 'btn.cancel':'Cancel', 'toast.updated':'Transaction updated',
@@ -661,7 +694,7 @@
         'theme':'Theme'
       },
       uk:{
-        'tab.new':'Додати транзакцію', 'tab.list':'Транзакції',
+        'tab.new':'Додати', 'tab.list':'Транзакції',
         'form.title':'Нова транзакція', 'form.subtitle':'Додайте запис до вашого журналу.',
         'form.edit.title':'Редагувати транзакцію', 'form.edit.subtitle':'Оновіть цей запис.',
         'btn.save':'Зберегти зміни', 'btn.cancel':'Скасувати', 'toast.updated':'Транзакцію оновлено',
@@ -839,6 +872,14 @@
     let TX = Lycee.cachedTransactions() || [];
     let txLoaded = !!Lycee.cachedTransactions();
 
+    // Money in vs out for the card accent + amount colour (uses the same classifiers
+    // as the dashboard: P&L first, then realised cash direction).
+    function txDir(tx){
+      const pl = txPL(tx); if (pl === 'income') return 'in'; if (pl === 'expense') return 'out';
+      return txCash(tx) === 'in' ? 'in' : 'out';
+    }
+    function curSym(c){ return ({ USD:'$', EUR:'€', UAH:'₴', GBP:'£', PLN:'zł' })[c] || (c ? c + ' ' : ''); }
+
     function renderTable(){
       document.getElementById('countBadge').textContent = TX.length;
       try { dashOnData(); } catch(e){}
@@ -871,6 +912,33 @@
           </div></td>
         </tr>
       `).join('');
+
+      // Card view (mobile) — same data, CSS toggles between this and the table.
+      document.getElementById('txCards').innerHTML = TX.map(tx => {
+        const dir = txDir(tx);
+        const sign = dir === 'in' ? '+' : '−';
+        const meta = [fmtDate(tx.occured_at || tx.date),
+          tx.type ? Lycee.pickName(tx.type, lang) : null,
+          tx.category ? Lycee.pickName(tx.category, lang) : null]
+          .filter(Boolean).map(escapeHtml).join(' · ');
+        const cp = escapeHtml(Lycee.pickName(tx.counterparty, lang) || '—');
+        const comment = tx.comment ? `<div class="txc-comment">${escapeHtml(tx.comment)}</div>` : '';
+        return `
+        <div class="tx-card ${dir}" data-id="${escapeHtml(tx.id)}">
+          <div class="txc-top">
+            <span class="txc-cp">${cp}</span>
+            <span class="txc-amt ${dir}">${sign}${escapeHtml(curSym(tx.currency))}${fmtNum(tx.total)}</span>
+          </div>
+          <div class="txc-row2">
+            <span class="txc-meta">${meta}</span>
+            <span class="txc-acts">
+              <button class="edit" type="button" aria-label="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>
+              <button class="del" type="button" aria-label="Delete">✕</button>
+            </span>
+          </div>
+          ${comment}
+        </div>`;
+      }).join('');
     }
 
     // Silent reconcile — only re-render when the data actually differs.
@@ -885,36 +953,38 @@
       } catch(e){ console.error(e); }
     }
 
-    // Delete a single row
-    document.getElementById('rows').addEventListener('click', async (e) => {
+    // Delegated on #content so both the table rows AND the mobile cards work.
+    const contentEl = document.getElementById('content');
+
+    // Delete a single transaction
+    contentEl.addEventListener('click', async (e) => {
       const btn = e.target.closest('.del');
       if (!btn) return;
-      const tr = btn.closest('tr');
-      const id = tr.dataset.id;
+      const host = btn.closest('[data-id]');
+      const id = host.dataset.id;
       btn.disabled = true;
       try {
         await Lycee.deleteTransaction(id);
         TX = TX.filter(tx => String(tx.id) !== String(id));
         Lycee.setCachedTransactions(TX);
         haptic('warning');
-        // Targeted O(1) update: drop just this row instead of re-rendering the whole
-        // table (rebuilding every row's DOM on each delete is what caused delete-spam lag).
+        // Targeted O(1) update: drop the matching row + card (both views share the id)
+        // instead of re-rendering everything (that caused delete-spam lag).
         if (!TX.length){
-          renderTable();                 // last row gone → show the empty state
+          renderTable();                 // last one gone → show the empty state
         } else {
-          tr.remove();
+          contentEl.querySelectorAll('[data-id="' + id + '"]').forEach(el => el.remove());
           document.getElementById('countBadge').textContent = TX.length;
           try { dashOnData(); } catch(e){} // repaint charts only if the dashboard is open
         }
       } catch(err){ console.error(err); btn.disabled = false; showToast(t('toast.error')); }
     });
 
-    // Edit a single row → open the form pre-filled in edit mode
-    document.getElementById('rows').addEventListener('click', (e) => {
+    // Edit a single transaction → open the form pre-filled in edit mode
+    contentEl.addEventListener('click', (e) => {
       const btn = e.target.closest('.edit');
       if (!btn) return;
-      const id = btn.closest('tr').dataset.id;
-      startEdit(id);
+      startEdit(btn.closest('[data-id]').dataset.id);
     });
 
     document.getElementById('clearBtn').onclick = () => {
