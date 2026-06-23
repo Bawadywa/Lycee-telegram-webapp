@@ -189,6 +189,11 @@
     var body = Object.assign({ user_id: userId }, data);
     return req('/transaction', { method: 'POST', body: JSON.stringify(body) });
   }
+  // PUT /transaction expects the full record incl. { id, user_id } (TransactionUpdate schema)
+  function updateTransaction(data) {
+    var body = Object.assign({ user_id: userId }, data);
+    return req('/transaction', { method: 'PUT', body: JSON.stringify(body) });
+  }
   // DELETE /transaction expects a JSON body { id, user_id } (TransactionDelete schema)
   function deleteTransaction(id) {
     return req('/transaction', { method: 'DELETE', body: JSON.stringify({ id: Number(id), user_id: userId }) });
@@ -231,6 +236,7 @@
     setCachedTransactions: setCachedTx,// keep cache in sync after create/delete
     generateRandom: generateRandom,
     createTransaction: createTransaction,
+    updateTransaction: updateTransaction,
     deleteTransaction: deleteTransaction,
     clearTransactions: clearTransactions,
     getSheetUrl: getSheetUrl,

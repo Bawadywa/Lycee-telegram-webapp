@@ -216,12 +216,16 @@
       display:inline-block; padding:3px 9px; border-radius:999px;
       border:1px solid var(--border); font-size:12px; font-weight:700; white-space:nowrap;
     }
-    .del{
+    .row-actions{ display:inline-flex; gap:2px; align-items:center; justify-content:flex-end; }
+    .del, .edit{
       width:auto; margin:0; padding:4px 6px; background:transparent; border:none;
       color:var(--hint); cursor:pointer; font-size:16px; line-height:1; border-radius:8px;
+      display:inline-flex; align-items:center; justify-content:center;
     }
     .del:hover{ color:#f87171; }
-    th.act, td.act{ width:34px; text-align:center; }
+    .edit:hover{ color:#2dd4bf; }
+    .edit svg{ width:16px; height:16px; display:block; }
+    th.act, td.act{ width:64px; text-align:right; }
 
     /* Empty / status state (transactions) */
     .empty{ text-align:center; padding:42px 16px 30px; }
@@ -361,23 +365,26 @@
           <textarea id="comment" rows="3" maxlength="40" data-i18n-ph="ph.comment" placeholder="What was it for?"></textarea>
 
           <button class="btn-gradient" id="createBtn" type="button" data-i18n="btn.create">Create transaction</button>
+          <button class="btn-ghost" id="cancelEditBtn" type="button" style="display:none" data-i18n="btn.cancel">Cancel</button>
 
-          <div class="or-divider" data-i18n="divider.or">or</div>
+          <div id="genSection">
+            <div class="or-divider" data-i18n="divider.or">or</div>
 
-          <label data-i18n="field.count">How many to generate</label>
-          <select id="count">
-            <option value="25" selected>25</option>
-            <option value="30">30</option>
-            <option value="35">35</option>
-            <option value="40">40</option>
-            <option value="45">45</option>
-            <option value="50">50</option>
-            <option value="55">55</option>
-          </select>
-          <button class="btn-ghost" id="randomBtn" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/></svg>
-            <span data-i18n="btn.random">Generate random data</span>
-          </button>
+            <label data-i18n="field.count">How many to generate</label>
+            <select id="count">
+              <option value="25" selected>25</option>
+              <option value="30">30</option>
+              <option value="35">35</option>
+              <option value="40">40</option>
+              <option value="45">45</option>
+              <option value="50">50</option>
+              <option value="55">55</option>
+            </select>
+            <button class="btn-ghost" id="randomBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/></svg>
+              <span data-i18n="btn.random">Generate random data</span>
+            </button>
+          </div>
 
           <p class="hint" id="themeHint"></p>
         </div>
@@ -512,6 +519,8 @@
       en:{
         'tab.new':'New', 'tab.list':'Transactions',
         'form.title':'New transaction', 'form.subtitle':'Add an entry to your ledger.',
+        'form.edit.title':'Edit transaction', 'form.edit.subtitle':'Update this entry.',
+        'btn.save':'Save changes', 'btn.cancel':'Cancel', 'toast.updated':'Transaction updated',
         'field.date':'Date', 'field.total':'Total', 'field.currency':'Currency', 'field.type':'Type',
         'field.category':'Category', 'field.counterparty':'Counterparty', 'field.comment':'Comment',
         'field.count':'How many to generate',
@@ -548,6 +557,8 @@
       uk:{
         'tab.new':'Нова', 'tab.list':'Транзакції',
         'form.title':'Нова транзакція', 'form.subtitle':'Додайте запис до вашого журналу.',
+        'form.edit.title':'Редагувати транзакцію', 'form.edit.subtitle':'Оновіть цей запис.',
+        'btn.save':'Зберегти зміни', 'btn.cancel':'Скасувати', 'toast.updated':'Транзакцію оновлено',
         'field.date':'Дата', 'field.total':'Сума', 'field.currency':'Валюта', 'field.type':'Тип',
         'field.category':'Категорія', 'field.counterparty':'Контрагент', 'field.comment':'Коментар',
         'field.count':'Скільки згенерувати',
@@ -748,7 +759,10 @@
           <td>${tx.category ? `<span class="cur-chip">${escapeHtml(Lycee.pickName(tx.category, lang))}</span>` : '—'}</td>
           <td>${escapeHtml(Lycee.pickName(tx.counterparty, lang) || '—')}</td>
           <td class="t-comment">${escapeHtml(tx.comment || '—')}</td>
-          <td class="act"><button class="del" type="button" aria-label="Delete">✕</button></td>
+          <td class="act"><div class="row-actions">
+            <button class="edit" type="button" aria-label="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>
+            <button class="del" type="button" aria-label="Delete">✕</button>
+          </div></td>
         </tr>
       `).join('');
     }
@@ -769,15 +783,32 @@
     document.getElementById('rows').addEventListener('click', async (e) => {
       const btn = e.target.closest('.del');
       if (!btn) return;
-      const id = btn.closest('tr').dataset.id;
+      const tr = btn.closest('tr');
+      const id = tr.dataset.id;
       btn.disabled = true;
       try {
         await Lycee.deleteTransaction(id);
         TX = TX.filter(tx => String(tx.id) !== String(id));
         Lycee.setCachedTransactions(TX);
         haptic('warning');
-        renderTable();
+        // Targeted O(1) update: drop just this row instead of re-rendering the whole
+        // table (rebuilding every row's DOM on each delete is what caused delete-spam lag).
+        if (!TX.length){
+          renderTable();                 // last row gone → show the empty state
+        } else {
+          tr.remove();
+          document.getElementById('countBadge').textContent = TX.length;
+          try { dashOnData(); } catch(e){} // repaint charts only if the dashboard is open
+        }
       } catch(err){ console.error(err); btn.disabled = false; showToast(t('toast.error')); }
+    });
+
+    // Edit a single row → open the form pre-filled in edit mode
+    document.getElementById('rows').addEventListener('click', (e) => {
+      const btn = e.target.closest('.edit');
+      if (!btn) return;
+      const id = btn.closest('tr').dataset.id;
+      startEdit(id);
     });
 
     document.getElementById('clearBtn').onclick = () => {
@@ -801,6 +832,55 @@
     dateInput.addEventListener('change', syncDate);
 
     const createBtn = document.getElementById('createBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const genSection = document.getElementById('genSection');
+    const formTitle = document.querySelector('#view-new .title');
+    const formSubtitle = document.querySelector('#view-new .subtitle');
+
+    let editingId = null;   // null = create mode; otherwise the id being edited
+
+    // id from a nested reference object ({id,name_*}) with a flat *_id fallback
+    function refId(obj, fallback){ return (obj && obj.id != null) ? obj.id : (fallback != null ? fallback : ''); }
+
+    function resetForm(){
+      document.getElementById('total').value = '';
+      document.getElementById('comment').value = '';
+      typeSel.selectedIndex = 0; catSel.selectedIndex = 0; cpSel.selectedIndex = 0;
+    }
+
+    // Swap the form's labels between create / edit. Uses data-i18n so a later
+    // language toggle re-localizes correctly (applyI18n reads these attributes).
+    function setFormMode(editing){
+      formTitle.dataset.i18n    = editing ? 'form.edit.title'    : 'form.title';
+      formSubtitle.dataset.i18n = editing ? 'form.edit.subtitle' : 'form.subtitle';
+      createBtn.dataset.i18n    = editing ? 'btn.save'           : 'btn.create';
+      formTitle.textContent    = t(formTitle.dataset.i18n);
+      formSubtitle.textContent = t(formSubtitle.dataset.i18n);
+      createBtn.textContent    = t(createBtn.dataset.i18n);
+      cancelEditBtn.style.display = editing ? '' : 'none';
+      genSection.style.display    = editing ? 'none' : '';
+    }
+
+    function startEdit(id){
+      const tx = TX.find(x => String(x.id) === String(id));
+      if (!tx) return;
+      editingId = tx.id;
+      dateInput.value = String(tx.occured_at || tx.date || '').slice(0, 10);
+      syncDate();
+      document.getElementById('total').value = tx.total != null ? tx.total : '';
+      document.getElementById('currency').value = tx.currency || 'USD';
+      typeSel.value = String(refId(tx.type, tx.type_id));
+      catSel.value  = String(refId(tx.category, tx.category_id));
+      cpSel.value   = String(refId(tx.counterparty, tx.counterparty_id));
+      document.getElementById('comment').value = tx.comment || '';
+      setFormMode(true);
+      showView('new');
+      views.new.scrollTop = 0;
+    }
+
+    function cancelEdit(){ editingId = null; resetForm(); setFormMode(false); }
+    cancelEditBtn.onclick = () => { cancelEdit(); showView('table'); };
+
     createBtn.onclick = async () => {
       const date = dateInput.value;
       const total = parseFloat(document.getElementById('total').value);
@@ -815,15 +895,23 @@
       }
       if (!Lycee.configured){ notify(t('hint.config')); return; }
 
+      const payload = { occured_at: date, total, currency, type_id, category_id, counterparty_id, comment };
       createBtn.disabled = true;
       try {
-        await Lycee.createTransaction({ occured_at: date, total, currency, type_id, category_id, counterparty_id, comment });
-        haptic('success');
-        document.getElementById('total').value = '';
-        document.getElementById('comment').value = '';
-        typeSel.selectedIndex = 0; catSel.selectedIndex = 0; cpSel.selectedIndex = 0;
-        await reconcileTable();   // refresh cache + badge
-        showToast(t('toast.created'));
+        if (editingId != null){
+          await Lycee.updateTransaction(Object.assign({ id: editingId }, payload));
+          haptic('success');
+          cancelEdit();             // exit edit mode + clear the form
+          await reconcileTable();   // refresh cache + badge
+          showToast(t('toast.updated'));
+          showView('table');        // back to the list to see the change
+        } else {
+          await Lycee.createTransaction(payload);
+          haptic('success');
+          resetForm();
+          await reconcileTable();   // refresh cache + badge
+          showToast(t('toast.created'));
+        }
       } catch(e){ console.error(e); haptic('error'); notify(t('toast.error')); }
       finally { createBtn.disabled = false; }
     };
