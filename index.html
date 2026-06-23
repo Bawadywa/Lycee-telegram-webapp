@@ -8,6 +8,7 @@
   <script src="./config.js?v=22"></script>
   <script src="./api.js?v=22"></script>
   <script src="./chart.umd.min.js?v=22"></script>
+  <script src="./ui.js?v=23"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -258,7 +259,7 @@
 
     /* ---------- Dashboard ---------- */
     .dash-col{ max-width:980px; margin-inline:auto; padding-bottom:24px; }
-    .dash-filters{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
+    .dash-filters{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
     .dash-ctl{ flex:1 1 150px; min-width:140px; }
     .dash-ctl > label{ margin:0 0 6px; }
     .dash-ctl select{ width:100%; }
@@ -302,6 +303,68 @@
       .dash-card.span2{ grid-column:span 2; }
     }
     @media (min-width:1100px){ .kpis{ grid-template-columns:repeat(6,1fr); } }
+
+    /* ---------- Custom select + date picker (desktop enhancement) ---------- */
+    .ui-select{ position:relative; width:100%; }
+    .ui-trigger{
+      width:100%; min-height:46px; padding:11px 12px; font-size:16px; font-family:inherit;
+      color:var(--text); background:var(--field_bg); border:1px solid var(--field_border);
+      border-radius:var(--radius); cursor:pointer; outline:none;
+      display:flex; align-items:center; gap:8px;
+      transition:border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+    }
+    .ui-trigger:hover{ border-color:var(--field_focus); background:rgba(255,255,255,.08); }
+    .ui-select.open .ui-trigger, .ui-trigger:focus-visible{ border-color:#2dd4bf; box-shadow:0 0 0 4px var(--field_focus); }
+    .ui-trigger-label{ flex:1; min-width:0; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ui-trigger.placeholder .ui-trigger-label{ color:var(--hint); }
+    .ui-caret, .ui-calico{ width:16px; height:16px; flex:none; color:var(--hint); }
+    .ui-caret{ transition:transform .2s ease; }
+    .ui-select.open .ui-trigger .ui-caret{ transform:rotate(180deg); color:#2dd4bf; }
+    .ui-select.open .ui-trigger .ui-calico{ color:#2dd4bf; }
+
+    .ui-pop{
+      position:fixed; z-index:120; background:var(--secondary_bg);
+      border:1px solid var(--border); border-radius:14px; padding:6px;
+      box-shadow:0 18px 50px rgba(0,0,0,.55);
+      backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+      opacity:0; transform:translateY(-6px) scale(.98); transform-origin:top center;
+      transition:opacity .15s ease, transform .15s ease; pointer-events:none;
+    }
+    .ui-pop.show{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+    .ui-pop-list{ max-height:280px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+    .ui-opt{
+      padding:10px 12px; border-radius:9px; font-size:15px; color:var(--text); cursor:pointer;
+      display:flex; align-items:center; gap:8px; transition:background-color .12s ease;
+    }
+    .ui-opt-txt{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ui-opt.active{ background:rgba(255,255,255,.08); }
+    .ui-opt.selected{ background:linear-gradient(135deg,rgba(74,222,128,.22),rgba(168,85,247,.22)); color:#fff; }
+    .ui-opt.disabled{ color:var(--hint); opacity:.6; cursor:default; }
+    .ui-check{ width:16px; height:16px; flex:none; color:#2dd4bf; opacity:0; }
+    .ui-opt.selected .ui-check{ opacity:1; }
+
+    /* calendar */
+    .ui-cal{ width:300px; max-width:calc(100vw - 16px); }
+    .ui-cal-head{ display:flex; align-items:center; justify-content:space-between; padding:4px 4px 10px; }
+    .ui-cal-title{ font-family:'Manrope',sans-serif; font-weight:700; font-size:15px; text-transform:capitalize; }
+    .ui-cal-nav{ display:flex; gap:6px; }
+    .ui-cal-nav button{ width:30px; height:30px; border-radius:9px; border:1px solid var(--border);
+      background:var(--card_bg); color:var(--text); cursor:pointer; font-size:18px; line-height:1;
+      display:inline-flex; align-items:center; justify-content:center; transition:border-color .15s, color .15s; }
+    .ui-cal-nav button:hover{ border-color:#2dd4bf; color:#2dd4bf; }
+    .ui-cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+    .ui-cal-dow{ text-align:center; font-size:10px; color:var(--hint); text-transform:uppercase; letter-spacing:.04em; font-weight:700; padding:4px 0; }
+    .ui-cal-day{ height:34px; min-width:0; display:flex; align-items:center; justify-content:center; border-radius:9px;
+      font-size:13px; cursor:pointer; color:var(--text); transition:background-color .12s ease; }
+    .ui-cal-day.empty{ cursor:default; }
+    .ui-cal-day:not(.empty):not(.disabled):hover{ background:rgba(255,255,255,.08); }
+    .ui-cal-day.today{ box-shadow:inset 0 0 0 1px var(--field_border); }
+    .ui-cal-day.selected{ background:var(--grad); color:#fff; font-weight:700; box-shadow:none; }
+    .ui-cal-day.disabled{ color:var(--hint); opacity:.3; cursor:default; }
+    .ui-cal-foot{ display:flex; justify-content:space-between; padding:8px 2px 2px; }
+    .ui-cal-foot button{ background:transparent; border:none; color:#2dd4bf; font-family:inherit;
+      font-weight:700; font-size:13px; cursor:pointer; padding:6px 8px; border-radius:8px; transition:background-color .12s; }
+    .ui-cal-foot button:hover{ background:rgba(45,212,191,.12); }
   </style>
 </head>
 <body data-scheme="dark">
@@ -453,11 +516,17 @@
           </div>
           <div class="dash-ctl">
             <label data-i18n="dash.f.from">From</label>
-            <input id="dashFrom" type="date">
+            <div class="date-field" id="dashFromWrap">
+              <input id="dashFrom" type="date">
+              <span class="date-placeholder" data-i18n="dash.ph.from">📅 From date</span>
+            </div>
           </div>
           <div class="dash-ctl">
             <label data-i18n="dash.f.to">To</label>
-            <input id="dashTo" type="date">
+            <div class="date-field" id="dashToWrap">
+              <input id="dashTo" type="date">
+              <span class="date-placeholder" data-i18n="dash.ph.to">📅 To date</span>
+            </div>
           </div>
         </div>
         <div class="dash-ctl chips-ctl">
@@ -544,6 +613,8 @@
         'toast.cleared':'All cleared',
         'tab.dash':'Dashboard',
         'dash.f.currency':'Currency', 'dash.f.from':'From', 'dash.f.to':'To', 'dash.f.cats':'Categories',
+        'dash.cur.all':'All (₴)',
+        'dash.ph.from':'📅 From date', 'dash.ph.to':'📅 To date',
         'dash.kpi.income':'Income', 'dash.kpi.expenses':'Expenses', 'dash.kpi.net':'Net profit',
         'dash.kpi.margin':'Margin', 'dash.kpi.cash':'Cash balance', 'dash.kpi.count':'Transactions',
         'dash.income':'Income', 'dash.expenses':'Expenses',
@@ -581,6 +652,8 @@
         'toast.cleared':'Очищено',
         'tab.dash':'Дашборд',
         'dash.f.currency':'Валюта', 'dash.f.from':'Від', 'dash.f.to':'До', 'dash.f.cats':'Категорії',
+        'dash.cur.all':'Всі (₴)',
+        'dash.ph.from':'📅 Дата від', 'dash.ph.to':'📅 Дата до',
         'dash.kpi.income':'Доходи', 'dash.kpi.expenses':'Витрати', 'dash.kpi.net':'Чистий прибуток',
         'dash.kpi.margin':'Рентабельність', 'dash.kpi.cash':'Залишок коштів', 'dash.kpi.count':'Транзакції',
         'dash.income':'Доходи', 'dash.expenses':'Витрати',
@@ -606,6 +679,7 @@
       document.getElementById('langLabel').textContent = (lang === 'uk') ? 'UA' : 'EN';
       refillSelects();
       renderTable();     // re-localize dates / numbers / names
+      if (window.LyceeUI) LyceeUI.refreshAll();  // relocalize custom select/date widgets
     }
     document.getElementById('langBtn').onclick = () => {
       lang = (lang === 'uk') ? 'en' : 'uk';
@@ -712,6 +786,7 @@
     function refillSelects(){
       if (!typeSel) return;
       fillSelect(typeSel, TYPES); fillSelect(catSel, CATS); fillSelect(cpSel, CPS);
+      if (window.LyceeUI) LyceeUI.refreshAll();  // reflect new options in custom selects
     }
     async function loadOptions(){
       if (!Lycee.configured){ const el = document.getElementById('themeHint'); if (el) el.textContent = t('hint.config'); return; }
@@ -841,6 +916,7 @@
       document.getElementById('total').value = '';
       document.getElementById('comment').value = '';
       typeSel.selectedIndex = 0; catSel.selectedIndex = 0; cpSel.selectedIndex = 0;
+      if (window.LyceeUI) LyceeUI.refreshAll();
     }
 
     // Swap the form's labels between create / edit. Uses data-i18n so a later
@@ -868,6 +944,7 @@
       catSel.value  = String(refId(tx.category, tx.category_id));
       cpSel.value   = String(refId(tx.counterparty, tx.counterparty_id));
       document.getElementById('comment').value = tx.comment || '';
+      if (window.LyceeUI) LyceeUI.refreshAll();  // reflect pre-filled values in custom widgets
       setFormMode(true);
       showView('new');
       views.new.scrollTop = 0;
@@ -942,9 +1019,9 @@
     let dashCharts = {};
 
     // Money formatter respecting the active currency + locale. `full`=exact (tooltips/KPIs),
-    // otherwise compact (axes).
+    // otherwise compact (axes). The "ALL" view aggregates everything in UAH (total_uah).
     function dashMoney(v, full){
-      const cur = dashState.currency || '';
+      const cur = dashState.currency === 'ALL' ? 'UAH' : (dashState.currency || '');
       const sym = CUR_SYMBOL[cur] || (cur ? cur + ' ' : '');
       const sign = v < 0 ? '-' : '';
       const a = Math.abs(v);
@@ -991,13 +1068,26 @@
     }
     function catName(tx){ return Lycee.pickName(tx.category, lang) || t('dash.uncat'); }
 
+    // Currency filter options: always offer ALL + the three defaults, plus any other
+    // currency actually present in the data. ALL aggregates everything in UAH.
     function dashCurrencies(){
-      const m = {};
-      TX.forEach(tx => { const c = tx.currency || '—'; m[c] = (m[c]||0) + 1; });
-      return Object.keys(m).sort((a,b) => m[b] - m[a]); // most-used first
+      const list = ['ALL', 'USD', 'EUR', 'UAH'];
+      TX.forEach(tx => { const c = tx.currency; if (c && list.indexOf(c) === -1) list.push(c); });
+      return list;
+    }
+    // True when the dashboard is showing every transaction (converted to UAH).
+    function dashIsAll(){ return dashState.currency === 'ALL'; }
+    // Rows in scope of the selected currency ('ALL' = every transaction).
+    function dashCurRows(){
+      return dashIsAll() ? TX.slice() : TX.filter(tx => (tx.currency || '') === dashState.currency);
+    }
+    // Amount used for aggregation: native total per-currency, or UAH-converted under ALL.
+    function txAmount(tx){
+      const v = dashIsAll() ? (tx.total_uah != null ? tx.total_uah : tx.total) : tx.total;
+      return Math.abs(Number(v) || 0);
     }
     function dashRows(){
-      let rows = TX.filter(tx => (tx.currency || '—') === dashState.currency);
+      let rows = dashCurRows();
       // Date range filter (string compare works: both sides are YYYY-MM-DD). Either end may be open.
       if (dashState.from) rows = rows.filter(tx => txISO(tx) && txISO(tx) >= dashState.from);
       if (dashState.to)   rows = rows.filter(tx => txISO(tx) && txISO(tx) <= dashState.to);
@@ -1009,10 +1099,13 @@
       const curs = dashCurrencies();
       if (!dashState.currency || curs.indexOf(dashState.currency) === -1) dashState.currency = curs[0] || null;
       const selC = document.getElementById('dashCurrency');
-      selC.innerHTML = curs.map(c => `<option value="${esc(c)}" ${c===dashState.currency?'selected':''}>${esc(c)}</option>`).join('');
+      selC.innerHTML = curs.map(c => {
+        const labelC = (c === 'ALL') ? t('dash.cur.all') : c;
+        return `<option value="${esc(c)}" ${c===dashState.currency?'selected':''}>${esc(labelC)}</option>`;
+      }).join('');
 
-      // Everything below scopes to the selected currency.
-      const inCur = TX.filter(tx => (tx.currency || '—') === dashState.currency);
+      // Everything below scopes to the selected currency ('ALL' = every transaction).
+      const inCur = dashCurRows();
 
       // Date pickers — constrain to the min/max dates present, and reflect current state.
       const dates = inCur.map(txISO).filter(Boolean).sort();
@@ -1021,6 +1114,10 @@
       fromEl.min = minD; fromEl.max = maxD; toEl.min = minD; toEl.max = maxD;
       fromEl.value = dashState.from || '';
       toEl.value   = dashState.to   || '';
+      // Toggle the localized placeholder overlay (hidden once a date is chosen).
+      fromEl.closest('.date-field').classList.toggle('has-value', !!fromEl.value);
+      toEl.closest('.date-field').classList.toggle('has-value', !!toEl.value);
+      if (window.LyceeUI) LyceeUI.refreshAll();  // sync custom currency/date widgets
 
       // Category chips reflect the categories present in the selected currency.
       const cats = Array.from(new Set(inCur.map(catName))).sort((a,b)=>a.localeCompare(b));
@@ -1050,7 +1147,7 @@
       const expCat = {}, incCat = {}; let totIn = 0, totOut = 0;
       rows.forEach(tx => {
         const k = txMonth(tx); if (!k) return;
-        const amt = Math.abs(Number(tx.total) || 0);
+        const amt = txAmount(tx);
         const c = catName(tx);
         // Income / expense charts: operating P&L only.
         const pl = txPL(tx);
@@ -1261,6 +1358,7 @@
     window.addEventListener('resize', dashResizeSoon);
 
     /* ---------------- Init ---------------- */
+    if (window.LyceeUI) LyceeUI.enhanceAll();  // custom selects/date picker on desktop (no-op on touch)
     applyI18n();
     syncDate();
     renderTable();           // instant paint from cache (badge + table)
