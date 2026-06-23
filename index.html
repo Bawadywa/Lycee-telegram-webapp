@@ -134,9 +134,11 @@
       color:var(--text); background:var(--field_bg);
       border:1px solid var(--field_border); border-radius:var(--radius);
       outline:none; box-sizing:border-box;
+      transition:border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
     }
     textarea{ resize:vertical; min-height:84px; }
     input::placeholder, textarea::placeholder{ color:var(--hint); }
+    input:hover:not(:focus), select:hover:not(:focus){ border-color:var(--field_focus); background:rgba(255,255,255,.08); }
     input:focus, select:focus, textarea:focus{
       border-color:#2dd4bf;
       box-shadow:0 0 0 4px var(--field_focus);
@@ -144,7 +146,10 @@
     select{ appearance:none; -webkit-appearance:none;
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4 6 8 10 12 6'/%3E%3C/svg%3E");
       background-repeat:no-repeat; background-position:right 12px center; padding-right:36px;
+      transition:border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
     }
+    /* The native chevron rotates on open to signal the dropdown state. */
+    select:focus{ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%232dd4bf' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4 10 8 6 12 10'/%3E%3C/svg%3E"); }
     select option, select optgroup{ background-color:var(--secondary_bg); color:var(--text); }
     select option:disabled{ color:var(--hint); }
 
@@ -447,14 +452,12 @@
             <select id="dashCurrency"></select>
           </div>
           <div class="dash-ctl">
-            <label data-i18n="dash.f.period">Period</label>
-            <select id="dashPeriod">
-              <option value="all" data-i18n="dash.period.all">All time</option>
-              <option value="3" data-i18n="dash.period.3">Last 3 months</option>
-              <option value="6" data-i18n="dash.period.6">Last 6 months</option>
-              <option value="12" data-i18n="dash.period.12">Last 12 months</option>
-              <option value="ytd" data-i18n="dash.period.ytd">This year</option>
-            </select>
+            <label data-i18n="dash.f.from">From</label>
+            <input id="dashFrom" type="date">
+          </div>
+          <div class="dash-ctl">
+            <label data-i18n="dash.f.to">To</label>
+            <input id="dashTo" type="date">
           </div>
         </div>
         <div class="dash-ctl chips-ctl">
@@ -529,6 +532,7 @@
         'toast.created':'Transaction added', 'toast.generated':'Random transactions generated',
         'toast.error':'Something went wrong',
         'alert.fill':'Please fill in date, total, type, category and counterparty.',
+        'alert.missing':'Please fill in:',
         'hint.config':'⚠ Set API_BASE in config.js',
         'table.title':'Transactions', 'table.subtitle':"Everything you've added so far.",
         'th.date':'Date', 'th.total':'Total', 'th.currency':'Currency', 'th.type':'Type',
@@ -539,9 +543,7 @@
         'btn.clear':'Clear all', 'confirm.clear':'Delete all transactions?',
         'toast.cleared':'All cleared',
         'tab.dash':'Dashboard',
-        'dash.f.currency':'Currency', 'dash.f.period':'Period', 'dash.f.cats':'Categories',
-        'dash.period.all':'All time', 'dash.period.3':'Last 3 months', 'dash.period.6':'Last 6 months',
-        'dash.period.12':'Last 12 months', 'dash.period.ytd':'This year',
+        'dash.f.currency':'Currency', 'dash.f.from':'From', 'dash.f.to':'To', 'dash.f.cats':'Categories',
         'dash.kpi.income':'Income', 'dash.kpi.expenses':'Expenses', 'dash.kpi.net':'Net profit',
         'dash.kpi.margin':'Margin', 'dash.kpi.cash':'Cash balance', 'dash.kpi.count':'Transactions',
         'dash.income':'Income', 'dash.expenses':'Expenses',
@@ -567,6 +569,7 @@
         'toast.created':'Транзакцію додано', 'toast.generated':'Випадкові транзакції створено',
         'toast.error':'Сталася помилка',
         'alert.fill':'Вкажіть дату, суму, тип, категорію та контрагента.',
+        'alert.missing':'Заповніть, будь ласка:',
         'hint.config':'⚠ Вкажіть API_BASE у config.js',
         'table.title':'Транзакції', 'table.subtitle':'Усе, що ви додали.',
         'th.date':'Дата', 'th.total':'Сума', 'th.currency':'Валюта', 'th.type':'Тип',
@@ -577,9 +580,7 @@
         'btn.clear':'Очистити все', 'confirm.clear':'Видалити всі транзакції?',
         'toast.cleared':'Очищено',
         'tab.dash':'Дашборд',
-        'dash.f.currency':'Валюта', 'dash.f.period':'Період', 'dash.f.cats':'Категорії',
-        'dash.period.all':'Весь час', 'dash.period.3':'Останні 3 міс.', 'dash.period.6':'Останні 6 міс.',
-        'dash.period.12':'Останні 12 міс.', 'dash.period.ytd':'Цей рік',
+        'dash.f.currency':'Валюта', 'dash.f.from':'Від', 'dash.f.to':'До', 'dash.f.cats':'Категорії',
         'dash.kpi.income':'Доходи', 'dash.kpi.expenses':'Витрати', 'dash.kpi.net':'Чистий прибуток',
         'dash.kpi.margin':'Рентабельність', 'dash.kpi.cash':'Залишок коштів', 'dash.kpi.count':'Транзакції',
         'dash.income':'Доходи', 'dash.expenses':'Витрати',
@@ -605,7 +606,6 @@
       document.getElementById('langLabel').textContent = (lang === 'uk') ? 'UA' : 'EN';
       refillSelects();
       renderTable();     // re-localize dates / numbers / names
-      updateThemeHint();
     }
     document.getElementById('langBtn').onclick = () => {
       lang = (lang === 'uk') ? 'en' : 'uk';
@@ -634,11 +634,6 @@
 
       if (typeof tg.setBackgroundColor === 'function') { try { tg.setBackgroundColor(bg); } catch(e){} }
       if (typeof tg.setHeaderColor === 'function')     { try { tg.setHeaderColor(bg); } catch(e){} }
-      updateThemeHint();
-    }
-    function updateThemeHint(){
-      const el = document.getElementById('themeHint');
-      if (el) el.textContent = t('theme') + ': dark';
     }
     applyTheme();
     if (typeof tg.onEvent === 'function') tg.onEvent('themeChanged', applyTheme);
@@ -890,9 +885,15 @@
       const counterparty_id = parseInt(cpSel.value, 10);
       const comment = document.getElementById('comment').value.trim();
 
-      if (!date || isNaN(total) || total <= 0 || !type_id || !category_id || !counterparty_id){
-        notify(t('alert.fill')); return;
-      }
+      // Name exactly which required fields are missing, so the popup is specific
+      // (e.g. only the counterparty → "Please fill in: Counterparty").
+      const missing = [];
+      if (!date) missing.push(t('field.date'));
+      if (isNaN(total) || total <= 0) missing.push(t('field.total'));
+      if (!type_id) missing.push(t('field.type'));
+      if (!category_id) missing.push(t('field.category'));
+      if (!counterparty_id) missing.push(t('field.counterparty'));
+      if (missing.length){ notify(t('alert.missing') + ' ' + missing.join(', ')); return; }
       if (!Lycee.configured){ notify(t('hint.config')); return; }
 
       const payload = { occured_at: date, total, currency, type_id, category_id, counterparty_id, comment };
@@ -937,7 +938,7 @@
        derived from the live transactions, so it updates the moment a tx is added/removed. */
     const DASH_PALETTE = ['#4ade80','#2dd4bf','#a855f7','#56b4d8','#f59e0b','#f472b6','#6c9ce6','#34d399','#fb923c','#e879f9','#facc15','#38bdf8'];
     const CUR_SYMBOL = { USD:'$', EUR:'€', UAH:'₴', GBP:'£', PLN:'zł' };
-    const dashState = { currency:null, period:'all', cats:null }; // cats:null = all categories
+    const dashState = { currency:null, from:'', to:'', cats:null }; // from/to = '' (open); cats:null = all
     let dashCharts = {};
 
     // Money formatter respecting the active currency + locale. `full`=exact (tooltips/KPIs),
@@ -997,14 +998,9 @@
     }
     function dashRows(){
       let rows = TX.filter(tx => (tx.currency || '—') === dashState.currency);
-      if (dashState.period !== 'all'){
-        const now = new Date();
-        const from = dashState.period === 'ytd'
-          ? new Date(now.getFullYear(), 0, 1)
-          : new Date(now.getFullYear(), now.getMonth() - (parseInt(dashState.period,10) - 1), 1);
-        const fk = from.getFullYear() + '-' + String(from.getMonth()+1).padStart(2,'0');
-        rows = rows.filter(tx => txMonth(tx) >= fk);
-      }
+      // Date range filter (string compare works: both sides are YYYY-MM-DD). Either end may be open.
+      if (dashState.from) rows = rows.filter(tx => txISO(tx) && txISO(tx) >= dashState.from);
+      if (dashState.to)   rows = rows.filter(tx => txISO(tx) && txISO(tx) <= dashState.to);
       if (dashState.cats) rows = rows.filter(tx => dashState.cats.has(catName(tx)));
       return rows;
     }
@@ -1014,10 +1010,19 @@
       if (!dashState.currency || curs.indexOf(dashState.currency) === -1) dashState.currency = curs[0] || null;
       const selC = document.getElementById('dashCurrency');
       selC.innerHTML = curs.map(c => `<option value="${esc(c)}" ${c===dashState.currency?'selected':''}>${esc(c)}</option>`).join('');
-      document.getElementById('dashPeriod').value = dashState.period;
+
+      // Everything below scopes to the selected currency.
+      const inCur = TX.filter(tx => (tx.currency || '—') === dashState.currency);
+
+      // Date pickers — constrain to the min/max dates present, and reflect current state.
+      const dates = inCur.map(txISO).filter(Boolean).sort();
+      const minD = dates[0] || '', maxD = dates[dates.length - 1] || '';
+      const fromEl = document.getElementById('dashFrom'), toEl = document.getElementById('dashTo');
+      fromEl.min = minD; fromEl.max = maxD; toEl.min = minD; toEl.max = maxD;
+      fromEl.value = dashState.from || '';
+      toEl.value   = dashState.to   || '';
 
       // Category chips reflect the categories present in the selected currency.
-      const inCur = TX.filter(tx => (tx.currency || '—') === dashState.currency);
       const cats = Array.from(new Set(inCur.map(catName))).sort((a,b)=>a.localeCompare(b));
       const host = document.getElementById('dashCats');
       host.innerHTML = cats.map((c,i) => {
@@ -1098,16 +1103,80 @@
       const g = canvas.getContext('2d').createLinearGradient(0, 0, 0, 230);
       g.addColorStop(0, color + '55'); g.addColorStop(1, color + '05'); return g;
     }
-    function buildDonut(canvasId, map, key){
+    // Donut slices from a {category: amount} map (with a grey "no data" placeholder).
+    function donutData(map){
       const e = Object.entries(map).sort((a,b)=>b[1]-a[1]);
-      let labels, data, colors;
-      if (!e.length){ labels = [t('dash.none')]; data = [1]; colors = ['rgba(255,255,255,.10)']; }
-      else { labels = e.map(x=>x[0]); data = e.map(x=>x[1]); colors = e.map((x,i)=>DASH_PALETTE[i%DASH_PALETTE.length]); }
-      dashCharts[key] = new Chart(document.getElementById(canvasId), {
+      if (!e.length) return { labels:[t('dash.none')], data:[1], colors:['rgba(255,255,255,.10)'] };
+      return { labels:e.map(x=>x[0]), data:e.map(x=>x[1]), colors:e.map((x,i)=>DASH_PALETTE[i%DASH_PALETTE.length]) };
+    }
+
+    // Build all five charts once (first paint / after returning from the empty state).
+    function createCharts(a){
+      dashCharts.ie = new Chart(document.getElementById('cIE'), {
+        type:'bar',
+        data:{ labels:a.labels, datasets:[
+          { label:t('dash.income'),   data:a.inc, backgroundColor:'#4ade80', borderRadius:5, maxBarThickness:28 },
+          { label:t('dash.expenses'), data:a.exp, backgroundColor:'#a855f7', borderRadius:5, maxBarThickness:28 }
+        ]},
+        options: dashAxisOpts(true)
+      });
+      const netCanvas = document.getElementById('cNet');
+      dashCharts.net = new Chart(netCanvas, {
+        type:'line',
+        data:{ labels:a.labels, datasets:[{ label:t('dash.c.net'), data:a.net,
+          borderColor:'#2dd4bf', backgroundColor:lineGradient(netCanvas,'#2dd4bf'),
+          fill:true, tension:.35, borderWidth:3, pointRadius:3, pointBackgroundColor:'#2dd4bf', pointHoverRadius:6 }] },
+        options: dashAxisOpts(false)
+      });
+      const cashCanvas = document.getElementById('cCash');
+      dashCharts.cash = new Chart(cashCanvas, {
+        type:'line',
+        data:{ labels:a.labels, datasets:[{ label:t('dash.c.cash'), data:a.cash,
+          borderColor:'#6c9ce6', backgroundColor:lineGradient(cashCanvas,'#6c9ce6'),
+          fill:true, tension:.35, borderWidth:3, pointRadius:3, pointBackgroundColor:'#6c9ce6', pointHoverRadius:6 }] },
+        options: dashAxisOpts(false)
+      });
+      const de = donutData(a.expCat), di = donutData(a.incCat);
+      dashCharts.exp = new Chart(document.getElementById('cExp'), {
         type:'doughnut',
-        data:{ labels, datasets:[{ data, backgroundColor:colors, borderColor:'#0f0f10', borderWidth:2, hoverOffset:6 }] },
+        data:{ labels:de.labels, datasets:[{ data:de.data, backgroundColor:de.colors, borderColor:'#0f0f10', borderWidth:2, hoverOffset:6 }] },
         options: dashDonutOpts()
       });
+      dashCharts.inc = new Chart(document.getElementById('cInc'), {
+        type:'doughnut',
+        data:{ labels:di.labels, datasets:[{ data:di.data, backgroundColor:di.colors, borderColor:'#0f0f10', borderWidth:2, hoverOffset:6 }] },
+        options: dashDonutOpts()
+      });
+    }
+
+    // Feed new data into the existing charts and let Chart.js animate the transition —
+    // no destroy/recreate, so filter/data changes morph smoothly instead of flashing.
+    // Labels are re-set too so a language switch updates legends in place.
+    function updateCharts(a){
+      const ie = dashCharts.ie;
+      ie.data.labels = a.labels;
+      ie.data.datasets[0].label = t('dash.income');   ie.data.datasets[0].data = a.inc;
+      ie.data.datasets[1].label = t('dash.expenses'); ie.data.datasets[1].data = a.exp;
+      ie.update();
+
+      const net = dashCharts.net;
+      net.data.labels = a.labels; net.data.datasets[0].label = t('dash.c.net'); net.data.datasets[0].data = a.net; net.update();
+
+      const cash = dashCharts.cash;
+      cash.data.labels = a.labels; cash.data.datasets[0].label = t('dash.c.cash'); cash.data.datasets[0].data = a.cash; cash.update();
+
+      const de = donutData(a.expCat);
+      const ce = dashCharts.exp;
+      ce.data.labels = de.labels; ce.data.datasets[0].data = de.data; ce.data.datasets[0].backgroundColor = de.colors; ce.update();
+
+      const di = donutData(a.incCat);
+      const ci = dashCharts.inc;
+      ci.data.labels = di.labels; ci.data.datasets[0].data = di.data; ci.data.datasets[0].backgroundColor = di.colors; ci.update();
+    }
+
+    function destroyCharts(){
+      Object.values(dashCharts).forEach(c => { try { c.destroy(); } catch(e){} });
+      dashCharts = {};
     }
 
     function renderDashKpis(a){
@@ -1132,10 +1201,9 @@
       const empty = document.getElementById('dashEmpty');
       const content = document.getElementById('dashContent');
       const kpis = document.getElementById('dashKpis');
-      Object.values(dashCharts).forEach(c => { try { c.destroy(); } catch(e){} });
-      dashCharts = {};
 
       if (!TX.length || !dashState.currency){
+        destroyCharts();
         content.style.display = 'none'; kpis.style.display = 'none'; empty.style.display = 'block';
         return;
       }
@@ -1146,38 +1214,9 @@
       Chart.defaults.font.family = "Inter, system-ui, sans-serif";
       Chart.defaults.color = '#a1a1aa';
 
-      // Income vs expenses (grouped bars)
-      dashCharts.ie = new Chart(document.getElementById('cIE'), {
-        type:'bar',
-        data:{ labels:a.labels, datasets:[
-          { label:t('dash.income'),   data:a.inc, backgroundColor:'#4ade80', borderRadius:5, maxBarThickness:28 },
-          { label:t('dash.expenses'), data:a.exp, backgroundColor:'#a855f7', borderRadius:5, maxBarThickness:28 }
-        ]},
-        options: dashAxisOpts(true)
-      });
-
-      // Net profit (line)
-      const netCanvas = document.getElementById('cNet');
-      dashCharts.net = new Chart(netCanvas, {
-        type:'line',
-        data:{ labels:a.labels, datasets:[{ label:t('dash.c.net'), data:a.net,
-          borderColor:'#2dd4bf', backgroundColor:lineGradient(netCanvas,'#2dd4bf'),
-          fill:true, tension:.35, borderWidth:3, pointRadius:3, pointBackgroundColor:'#2dd4bf', pointHoverRadius:6 }] },
-        options: dashAxisOpts(false)
-      });
-
-      // Cumulative cash balance (line)
-      const cashCanvas = document.getElementById('cCash');
-      dashCharts.cash = new Chart(cashCanvas, {
-        type:'line',
-        data:{ labels:a.labels, datasets:[{ label:t('dash.c.cash'), data:a.cash,
-          borderColor:'#6c9ce6', backgroundColor:lineGradient(cashCanvas,'#6c9ce6'),
-          fill:true, tension:.35, borderWidth:3, pointRadius:3, pointBackgroundColor:'#6c9ce6', pointHoverRadius:6 }] },
-        options: dashAxisOpts(false)
-      });
-
-      buildDonut('cExp', a.expCat, 'exp');
-      buildDonut('cInc', a.incCat, 'inc');
+      // Update existing charts in place (smooth, animated) or build them on first paint.
+      if (Object.keys(dashCharts).length) updateCharts(a);
+      else createCharts(a);
     }
 
     // Called whenever the TX list changes (or language switches). Repaints live if the
@@ -1186,11 +1225,40 @@
       if (!views.dash || views.dash.hidden) return;
       dashSyncControls(); renderDashboard();
     }
-    // Called when the dashboard tab becomes visible (canvases now have a size).
-    function dashShow(){ dashSyncControls(); renderDashboard(); }
+    // Called when the dashboard tab becomes visible. Charts persist across tab switches
+    // now (no recreate), so re-fit them to the container in case the viewport changed
+    // while the tab was hidden.
+    function dashShow(){ dashSyncControls(); renderDashboard(); dashResizeSoon(); }
 
     document.getElementById('dashCurrency').onchange = (e) => { dashState.currency = e.target.value; dashState.cats = null; dashSyncControls(); renderDashboard(); };
-    document.getElementById('dashPeriod').onchange   = (e) => { dashState.period = e.target.value; renderDashboard(); };
+    document.getElementById('dashFrom').onchange = (e) => {
+      dashState.from = e.target.value;
+      if (dashState.from && dashState.to && dashState.from > dashState.to) dashState.to = dashState.from;
+      dashSyncControls(); renderDashboard();
+    };
+    document.getElementById('dashTo').onchange = (e) => {
+      dashState.to = e.target.value;
+      if (dashState.from && dashState.to && dashState.to < dashState.from) dashState.from = dashState.to;
+      dashSyncControls(); renderDashboard();
+    };
+
+    // Re-fit charts when the viewport changes. Telegram's fullscreen toggle (esp. desktop
+    // on→off) resizes the webview without always firing a resize Chart.js catches in time,
+    // leaving canvases clipped — so we explicitly resize after the transition settles.
+    let _dashResizeTimers = [];
+    function dashResizeSoon(){
+      _dashResizeTimers.forEach(clearTimeout);
+      const doResize = () => {
+        if (!window.Chart || !views.dash || views.dash.hidden) return;
+        Object.values(dashCharts).forEach(c => { try { c.resize(); } catch(e){} });
+      };
+      _dashResizeTimers = [setTimeout(doResize, 200), setTimeout(doResize, 550)];
+    }
+    if (typeof tg.onEvent === 'function'){
+      tg.onEvent('fullscreenChanged', dashResizeSoon);
+      tg.onEvent('viewportChanged', dashResizeSoon);
+    }
+    window.addEventListener('resize', dashResizeSoon);
 
     /* ---------------- Init ---------------- */
     applyI18n();
