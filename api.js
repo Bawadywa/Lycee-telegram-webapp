@@ -27,7 +27,7 @@
   //   2. tg.initData                        (raw "user=<json>&hash=…" string)
   //   3. location.hash #tgWebAppData=…      (raw launch fragment)
   // The real id (only ever from Telegram) is cached in localStorage so the
-  // fragment-less tabs (table/sheet) keep using it after in-app navigation.
+  // fragment-less views keep using it after in-app navigation.
   //
   // There is intentionally NO fake fallback id anymore. If we can't find a real
   // Telegram id and no explicit ?uid= test override is given, userId stays 0 and
@@ -201,14 +201,6 @@
   // DELETE /transactions takes only user_id (query param) — clears all for the user
   function clearTransactions() { return req('/transactions' + qp(), { method: 'DELETE' }); }
 
-  /* -------- google sheet -------- */
-  function getSheetUrl() { return req('/google_sheet' + qp()); }
-  function createSheet() { return req('/google_sheet' + qp(), { method: 'POST' }); }
-  // Refresh the EXISTING sheet's data in place (clear → fill). The published
-  // iframe then reflects the new data without creating a new sheet.
-  function clearSheet() { return req('/google_sheet/clear' + qp()); }
-  function fillSheet() { return req('/google_sheet/fill' + qp()); }
-
   /* -------- helpers -------- */
   // localized label for {name_en, name_uk} reference objects
   function pickName(obj, lang) {
@@ -239,10 +231,6 @@
     updateTransaction: updateTransaction,
     deleteTransaction: deleteTransaction,
     clearTransactions: clearTransactions,
-    getSheetUrl: getSheetUrl,
-    createSheet: createSheet,
-    clearSheet: clearSheet,
-    fillSheet: fillSheet,
     pickName: pickName
   };
 })();

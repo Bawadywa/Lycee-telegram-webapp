@@ -333,17 +333,19 @@
     .data-card h3{ font-size:15px; font-weight:800; }
     .data-card .sub{ margin:2px 0 12px; font-size:12px; color:var(--hint); }
     /* Horizontal scroll keeps the wide month matrix usable on mobile; the first column
-       (row labels) stays pinned so you never lose track of the row while scrolling. */
-    .data-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -16px; padding:0 16px; }
+       (row labels) stays pinned so you never lose track of the row while scrolling.
+       NB: no horizontal padding on the scroll box — a padded scrollport would offset the
+       sticky `left:0` column and leave a strip where scrolled cells peek through. */
+    .data-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
     table.pivot{ border-collapse:collapse; font-size:13px; white-space:nowrap; min-width:100%; }
     table.pivot th, table.pivot td{ padding:9px 14px; text-align:right; border-bottom:1px solid var(--border); }
+    table.pivot th:first-child, table.pivot td:first-child{ padding-left:0; }
     table.pivot thead th{
-      font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
-      color:var(--hint); position:sticky; top:0;
+      font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--hint);
     }
     table.pivot .rowlabel{
       position:sticky; left:0; z-index:1; text-align:left; background:var(--secondary_bg);
-      font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis;
+      font-weight:600; max-width:160px; overflow:hidden; text-overflow:ellipsis; padding-right:18px;
     }
     table.pivot thead .rowlabel{ z-index:3; }
     table.pivot tbody tr:last-child td{ border-bottom:none; }
@@ -1227,6 +1229,19 @@
       if (/витрат|expense|cost|сплачен|виплачен|оплачен|paid|дивіденд|dividend|погашен/.test(s)) return 'out';
       return 'out';
     }
+    // P&L statement classification (accrual basis), mapping the 6 backend types:
+    //   Revenue = Дохід (income) + Дебіторка нарахована (receivable accrued)
+    //   Cost    = Витрати (expense) + Кредиторка нарахована (payable accrued)
+    // The settlement legs (Дебіторка / Кредиторка погашена) move cash but are not P&L, so
+    // they're excluded — accrued revenue/cost is counted once when earned/incurred.
+    function pnlClass(tx){
+      const s = typeStr(tx), accr = /нарахован|accru/.test(s);
+      if (/дохід|income|revenue/.test(s)) return 'rev';        // Дохід (income)
+      if (accr && /дебітор|receivable/.test(s)) return 'rev';  // Дебіторка нарахована
+      if (/витрат|expense/.test(s)) return 'cost';             // Витрати (expense)
+      if (accr && /кредитор|payable/.test(s)) return 'cost';   // Кредиторка нарахована
+      return '';
+    }
     function txISO(tx){ return String(tx.occured_at || tx.date || '').slice(0,10); }
     function txMonth(tx){ const d = txISO(tx); return d ? d.slice(0,7) : ''; } // YYYY-MM
     function monthLabel(key){
@@ -1323,12 +1338,13 @@
         const isRecv = /дебітор|receivable/.test(ts), isPay = /кредитор|payable/.test(ts);
         if (isRecv){ if (accr) recvAccr += amt; else if (settl) recvSettled += amt; }
         if (isPay){ if (accr) payAccr += amt; else if (settl) paySettled += amt; }
-        if (/інвестиц|investment/.test(cstr)) invest += amt;
-        if (/дивіденд|dividend/.test(cstr)) dividend += amt;
-        // P&L pivot: revenue = income-type + accrued receivable; cost = expense-type (which
-        // already includes accrued payable via txPL).
-        if (pl === 'income' || (isRecv && accr)){ bump(pnlInc, c, k, amt); pnlIncTot[k] = (pnlIncTot[k]||0) + amt; }
-        if (pl === 'expense'){ bump(pnlExp, c, k, amt); pnlExpTot[k] = (pnlExpTot[k]||0) + amt; }
+        // Investment / dividends are both TYPES and CATEGORIES in the real data — match either.
+        if (/інвестиц|investment/.test(ts) || /інвестиц|investment/.test(cstr)) invest += amt;
+        if (/дивіденд|dividend/.test(ts)   || /дивіденд|dividend/.test(cstr))   dividend += amt;
+        // P&L pivot (accrual basis — see pnlClass).
+        const pc = pnlClass(tx);
+        if (pc === 'rev'){  bump(pnlInc, c, k, amt); pnlIncTot[k] = (pnlIncTot[k]||0) + amt; }
+        if (pc === 'cost'){ bump(pnlExp, c, k, amt); pnlExpTot[k] = (pnlExpTot[k]||0) + amt; }
         // Per-counterparty balances.
         if (isRecv || isPay){
           const cp = cpName(tx);
