@@ -325,12 +325,43 @@
     .dash-card.donut .canvas-host{ height:280px; }
     .dash-card .canvas-host canvas{ display:block; max-width:100%; }
 
-    @media (min-width:560px){ .kpis{ grid-template-columns:repeat(3,1fr); } }
+    /* ---------- Data tables (P&L statement + counterparty balances) ---------- */
+    .data-card{
+      background:var(--secondary_bg); border:1px solid var(--border); border-radius:16px;
+      padding:16px; margin-top:12px; min-width:0;
+    }
+    .data-card h3{ font-size:15px; font-weight:800; }
+    .data-card .sub{ margin:2px 0 12px; font-size:12px; color:var(--hint); }
+    /* Horizontal scroll keeps the wide month matrix usable on mobile; the first column
+       (row labels) stays pinned so you never lose track of the row while scrolling. */
+    .data-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -16px; padding:0 16px; }
+    table.pivot{ border-collapse:collapse; font-size:13px; white-space:nowrap; min-width:100%; }
+    table.pivot th, table.pivot td{ padding:9px 14px; text-align:right; border-bottom:1px solid var(--border); }
+    table.pivot thead th{
+      font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+      color:var(--hint); position:sticky; top:0;
+    }
+    table.pivot .rowlabel{
+      position:sticky; left:0; z-index:1; text-align:left; background:var(--secondary_bg);
+      font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis;
+    }
+    table.pivot thead .rowlabel{ z-index:3; }
+    table.pivot tbody tr:last-child td{ border-bottom:none; }
+    table.pivot .r-section td, table.pivot .r-section .rowlabel{ font-weight:800; color:var(--text); }
+    table.pivot .r-total td, table.pivot .r-total .rowlabel{ font-weight:800; border-top:2px solid var(--border); }
+    table.pivot .r-cat .rowlabel{ font-weight:500; color:var(--hint); padding-left:26px; }
+    table.pivot .num{ font-variant-numeric:tabular-nums; }
+    table.pivot .pos{ color:#4ade80; }
+    table.pivot .neg{ color:#f87171; }
+    table.pivot .muted{ color:var(--hint); }
+    .data-empty{ padding:18px 4px; color:var(--hint); font-size:13.5px; text-align:center; }
+
+    @media (min-width:560px){ .kpis{ grid-template-columns:repeat(4,1fr); } }
     @media (min-width:760px){
       .dash-grid{ grid-template-columns:1fr 1fr; }
       .dash-card.span2{ grid-column:span 2; }
     }
-    @media (min-width:1100px){ .kpis{ grid-template-columns:repeat(6,1fr); } }
+    @media (min-width:1100px){ .kpis{ grid-template-columns:repeat(4,1fr); } }
 
     /* Dashboard call-to-action */
     .dash-cta{
@@ -586,19 +617,14 @@
             </div>
           </div>
         </div>
-        <div class="dash-ctl chips-ctl">
-          <label data-i18n="dash.f.cats">Categories</label>
-          <div class="chips" id="dashCats"></div>
-        </div>
-
         <section class="kpis" id="dashKpis"></section>
 
         <div id="dashContent">
           <div class="dash-grid">
             <div class="card dash-card span2">
-              <h3 data-i18n="dash.c.ie">Income vs expenses</h3>
-              <p class="sub" data-i18n="dash.c.ie.sub">By month</p>
-              <div class="canvas-host"><canvas id="cIE"></canvas></div>
+              <h3 data-i18n="dash.c.pnl">Profit &amp; loss</h3>
+              <p class="sub" id="pnlSub" data-i18n="dash.c.pnl.sub">Revenue · costs · net</p>
+              <div class="canvas-host"><canvas id="cPnl"></canvas></div>
             </div>
             <div class="card dash-card">
               <h3 data-i18n="dash.c.net">Net profit</h3>
@@ -615,11 +641,20 @@
               <p class="sub" data-i18n="dash.c.exp.sub">By category</p>
               <div class="canvas-host"><canvas id="cExp"></canvas></div>
             </div>
-            <div class="card dash-card donut">
-              <h3 data-i18n="dash.c.inc">Income structure</h3>
-              <p class="sub" data-i18n="dash.c.inc.sub">By category</p>
-              <div class="canvas-host"><canvas id="cInc"></canvas></div>
-            </div>
+          </div>
+
+          <!-- P&L statement (point 7) — monthly pivot, ref image.png -->
+          <div class="data-card">
+            <h3 data-i18n="dash.pnl.title">P&amp;L statement</h3>
+            <p class="sub" data-i18n="dash.pnl.subtitle">By month</p>
+            <div class="data-scroll"><table class="pivot" id="pnlTable"></table></div>
+          </div>
+
+          <!-- Receivables / payables by counterparty (point 8) -->
+          <div class="data-card">
+            <h3 data-i18n="dash.cp.title">Receivables / payables</h3>
+            <p class="sub" data-i18n="dash.cp.subtitle">By counterparty</p>
+            <div class="data-scroll"><table class="pivot" id="cpTable"></table></div>
           </div>
 
           <div class="dash-cta">
@@ -682,13 +717,21 @@
         'dash.cur.all':'All (₴)',
         'dash.ph.from':'📅 From date', 'dash.ph.to':'📅 To date',
         'dash.kpi.income':'Income', 'dash.kpi.expenses':'Expenses', 'dash.kpi.net':'Net profit',
-        'dash.kpi.margin':'Margin', 'dash.kpi.cash':'Cash balance', 'dash.kpi.count':'Transactions',
+        'dash.kpi.cash':'Cash balance',
+        'dash.kpi.receivable':'Receivables', 'dash.kpi.payable':'Payables',
+        'dash.kpi.invest':'Investments', 'dash.kpi.dividend':'Dividends',
         'dash.income':'Income', 'dash.expenses':'Expenses',
-        'dash.c.ie':'Income vs expenses', 'dash.c.ie.sub':'By month',
+        'dash.c.pnl':'Profit & loss', 'dash.c.pnl.sub':'Revenue · costs · net',
         'dash.c.net':'Net profit', 'dash.c.net.sub':'Monthly dynamics',
         'dash.c.cash':'Cash balance', 'dash.c.cash.sub':'Cumulative',
         'dash.c.exp':'Expense structure', 'dash.c.exp.sub':'By category',
-        'dash.c.inc':'Income structure', 'dash.c.inc.sub':'By category',
+        'dash.pnl.rev':'Revenue', 'dash.pnl.cost':'Costs', 'dash.pnl.net':'Net profit', 'dash.pnl.margin':'Margin',
+        'dash.pnl.title':'P&L statement', 'dash.pnl.subtitle':'By month',
+        'dash.pnl.profit':'Profit', 'dash.pnl.income':'Income', 'dash.pnl.expenses':'Expenses', 'dash.pnl.total':'Total',
+        'dash.pnl.none':'No income or expense data in range.',
+        'dash.cp.title':'Receivables / payables', 'dash.cp.subtitle':'By counterparty',
+        'dash.cp.counterparty':'Counterparty', 'dash.cp.payable':'Payables', 'dash.cp.receivable':'Receivables',
+        'dash.cp.none':'No open balances.', 'dash.nocp':'No counterparty',
         'dash.empty.title':'No data yet', 'dash.empty.text':'Add transactions to see your dashboard.',
         'dash.uncat':'Uncategorized', 'dash.none':'No data',
         'dash.cta.title':'Want a live dashboard like this for your business?',
@@ -724,13 +767,21 @@
         'dash.cur.all':'Всі (₴)',
         'dash.ph.from':'📅 Дата від', 'dash.ph.to':'📅 Дата до',
         'dash.kpi.income':'Доходи', 'dash.kpi.expenses':'Витрати', 'dash.kpi.net':'Чистий прибуток',
-        'dash.kpi.margin':'Рентабельність', 'dash.kpi.cash':'Залишок коштів', 'dash.kpi.count':'Транзакції',
+        'dash.kpi.cash':'Залишок коштів',
+        'dash.kpi.receivable':'Дебіторська заборг.', 'dash.kpi.payable':'Кредиторська заборг.',
+        'dash.kpi.invest':'Інвестиції', 'dash.kpi.dividend':'Дивіденди',
         'dash.income':'Доходи', 'dash.expenses':'Витрати',
-        'dash.c.ie':'Доходи та витрати', 'dash.c.ie.sub':'По місяцях',
+        'dash.c.pnl':'Прибутки та збитки', 'dash.c.pnl.sub':'Доходи · витрати · прибуток',
         'dash.c.net':'Чистий прибуток', 'dash.c.net.sub':'Динаміка по місяцях',
         'dash.c.cash':'Залишок коштів', 'dash.c.cash.sub':'Накопичувально',
         'dash.c.exp':'Структура витрат', 'dash.c.exp.sub':'За категоріями',
-        'dash.c.inc':'Структура доходів', 'dash.c.inc.sub':'За категоріями',
+        'dash.pnl.rev':'Доходи', 'dash.pnl.cost':'Витрати', 'dash.pnl.net':'Прибуток', 'dash.pnl.margin':'Маржа',
+        'dash.pnl.title':'Звіт про прибутки та збитки', 'dash.pnl.subtitle':'По місяцях',
+        'dash.pnl.profit':'Прибуток', 'dash.pnl.income':'Доходи', 'dash.pnl.expenses':'Витрати', 'dash.pnl.total':'Усього',
+        'dash.pnl.none':'Немає доходів чи витрат за період.',
+        'dash.cp.title':'Дебіторка / Кредиторка', 'dash.cp.subtitle':'За контрагентами',
+        'dash.cp.counterparty':'Контрагент', 'dash.cp.payable':'Кредиторка', 'dash.cp.receivable':'Дебіторка',
+        'dash.cp.none':'Немає відкритих залишків.', 'dash.nocp':'Без контрагента',
         'dash.empty.title':'Поки немає даних', 'dash.empty.text':'Додайте транзакції, щоб побачити дашборд.',
         'dash.uncat':'Без категорії', 'dash.none':'Немає даних',
         'dash.cta.title':'Хочете такий самий живий дашборд для свого бізнесу?',
@@ -751,6 +802,7 @@
       document.getElementById('langLabel').textContent = (lang === 'uk') ? 'UA' : 'EN';
       refillSelects();
       renderTable();     // re-localize dates / numbers / names
+      try { dashOnData(); } catch(e){}  // re-localize dashboard charts + tables if it's open
       if (window.LyceeUI) LyceeUI.refreshAll();  // relocalize custom select/date widgets
     }
     document.getElementById('langBtn').onclick = () => {
@@ -1150,6 +1202,11 @@
       const ty = tx.type || {};
       return ((ty.name_uk || '') + ' ' + (ty.name_en || '')).toLowerCase();
     }
+    // Category as a lowercased "UK EN" string for keyword matching (investments/dividends KPIs).
+    function catStr(tx){
+      const c = tx.category || {};
+      return ((c.name_uk || '') + ' ' + (c.name_en || '')).toLowerCase();
+    }
     // P&L (accrual) classification — what counts as operating income / expense.
     // Financing & transfers (loans, investments, dividends, and the settlement of
     // receivables/payables) are NOT P&L, so they return '' and stay out of the
@@ -1178,6 +1235,7 @@
       catch(e){ return key; }
     }
     function catName(tx){ return Lycee.pickName(tx.category, lang) || t('dash.uncat'); }
+    function cpName(tx){ return Lycee.pickName(tx.counterparty, lang) || t('dash.nocp'); }
 
     // Currency filter options: always offer ALL + the three defaults, plus any other
     // currency actually present in the data. ALL aggregates everything in UAH.
@@ -1229,23 +1287,6 @@
       fromEl.closest('.date-field').classList.toggle('has-value', !!fromEl.value);
       toEl.closest('.date-field').classList.toggle('has-value', !!toEl.value);
       if (window.LyceeUI) LyceeUI.refreshAll();  // sync custom currency/date widgets
-
-      // Category chips reflect the categories present in the selected currency.
-      const cats = Array.from(new Set(inCur.map(catName))).sort((a,b)=>a.localeCompare(b));
-      const host = document.getElementById('dashCats');
-      host.innerHTML = cats.map((c,i) => {
-        const on = !dashState.cats || dashState.cats.has(c);
-        const col = DASH_PALETTE[i % DASH_PALETTE.length];
-        return `<div class="chip ${on?'on':''}" data-cat="${esc(c)}" style="${on?`background:${col};border-color:${col}`:`color:${col}`}"><span class="dot"></span>${esc(c)}</div>`;
-      }).join('');
-      host.querySelectorAll('.chip').forEach(ch => ch.onclick = () => {
-        if (!dashState.cats) dashState.cats = new Set(cats);
-        const c = ch.dataset.cat;
-        if (dashState.cats.has(c)){ if (dashState.cats.size > 1) dashState.cats.delete(c); }
-        else dashState.cats.add(c);
-        if (dashState.cats.size === cats.length) dashState.cats = null; // all selected = no filter
-        dashSyncControls(); renderDashboard();
-      });
     }
 
     function dashAgg(){
@@ -1255,23 +1296,61 @@
       const months = Object.keys(monthsObj).sort();
       const inc = {}, exp = {}, cashNet = {};
       months.forEach(k => { inc[k] = 0; exp[k] = 0; cashNet[k] = 0; });
-      const expCat = {}, incCat = {}; let totIn = 0, totOut = 0;
+      const expCat = {}; let totIn = 0, totOut = 0;
+      // Balance-sheet style KPIs (point 2): receivables / payables are the net of their
+      // accrued vs. settled legs; investments / dividends are summed by category.
+      let recvAccr = 0, recvSettled = 0, payAccr = 0, paySettled = 0, invest = 0, dividend = 0;
+      // P&L pivot (point 7): revenue = Дохід + Дебіторка нарахована; costs = Витрати + Кредиторка
+      // нарахована. Broken down by category × month for the statement table + waterfall.
+      const pnlInc = {}, pnlExp = {}, pnlIncTot = {}, pnlExpTot = {};
+      // Receivables / payables per counterparty (point 8).
+      const cpMap = {};
+      const bump = (obj, key, k, v) => { (obj[key] = obj[key] || {})[k] = (obj[key][k] || 0) + v; };
       rows.forEach(tx => {
         const k = txMonth(tx); if (!k) return;
         const amt = txAmount(tx);
         const c = catName(tx);
         // Income / expense charts: operating P&L only.
         const pl = txPL(tx);
-        if (pl === 'income'){ inc[k] += amt; totIn += amt; incCat[c] = (incCat[c]||0) + amt; }
+        if (pl === 'income'){ inc[k] += amt; totIn += amt; }
         else if (pl === 'expense'){ exp[k] += amt; totOut += amt; expCat[c] = (expCat[c]||0) + amt; }
         // Cash-balance chart: every realised cash movement (incl. loans, dividends…).
         const cd = txCash(tx);
         if (cd === 'in') cashNet[k] += amt; else if (cd === 'out') cashNet[k] -= amt;
+        // Receivables / payables (by transaction type) + investments / dividends (by category).
+        const ts = typeStr(tx), cstr = catStr(tx);
+        const accr = /нарахован|accru/.test(ts), settl = /погашен|settl/.test(ts);
+        const isRecv = /дебітор|receivable/.test(ts), isPay = /кредитор|payable/.test(ts);
+        if (isRecv){ if (accr) recvAccr += amt; else if (settl) recvSettled += amt; }
+        if (isPay){ if (accr) payAccr += amt; else if (settl) paySettled += amt; }
+        if (/інвестиц|investment/.test(cstr)) invest += amt;
+        if (/дивіденд|dividend/.test(cstr)) dividend += amt;
+        // P&L pivot: revenue = income-type + accrued receivable; cost = expense-type (which
+        // already includes accrued payable via txPL).
+        if (pl === 'income' || (isRecv && accr)){ bump(pnlInc, c, k, amt); pnlIncTot[k] = (pnlIncTot[k]||0) + amt; }
+        if (pl === 'expense'){ bump(pnlExp, c, k, amt); pnlExpTot[k] = (pnlExpTot[k]||0) + amt; }
+        // Per-counterparty balances.
+        if (isRecv || isPay){
+          const cp = cpName(tx);
+          const m = cpMap[cp] || (cpMap[cp] = { recvAccr:0, recvSettled:0, payAccr:0, paySettled:0 });
+          if (isRecv){ if (accr) m.recvAccr += amt; else if (settl) m.recvSettled += amt; }
+          if (isPay){ if (accr) m.payAccr += amt; else if (settl) m.paySettled += amt; }
+        }
       });
       const incA = months.map(k => inc[k]), expA = months.map(k => exp[k]);
       const net = months.map((k,i) => incA[i] - expA[i]);
       let run = 0; const cash = months.map(k => (run += cashNet[k]));
-      return { labels: months.map(monthLabel), inc: incA, exp: expA, net, cash, totIn, totOut, expCat, incCat, count: rows.length };
+      // Counterparty rows with a non-zero open balance, biggest exposure first.
+      const cpRows = Object.keys(cpMap).map(name => {
+        const m = cpMap[name];
+        return { name, payable: m.payAccr - m.paySettled, receivable: m.recvAccr - m.recvSettled };
+      }).filter(r => Math.round(r.payable) !== 0 || Math.round(r.receivable) !== 0)
+        .sort((a,b) => (Math.abs(b.payable)+Math.abs(b.receivable)) - (Math.abs(a.payable)+Math.abs(a.receivable)));
+      const pnlRev = months.reduce((s,k) => s + (pnlIncTot[k]||0), 0);
+      const pnlCost = months.reduce((s,k) => s + (pnlExpTot[k]||0), 0);
+      return { months, labels: months.map(monthLabel), inc: incA, exp: expA, net, cash, totIn, totOut, expCat,
+        receivable: recvAccr - recvSettled, payable: payAccr - paySettled, invest, dividend, count: rows.length,
+        pnlInc, pnlExp, pnlIncTot, pnlExpTot, pnlRev, pnlCost, cpRows };
     }
 
     function dashTooltip(extra){
@@ -1317,17 +1396,40 @@
       if (!e.length) return { labels:[t('dash.none')], data:[1], colors:['rgba(255,255,255,.10)'] };
       return { labels:e.map(x=>x[0]), data:e.map(x=>x[1]), colors:e.map((x,i)=>DASH_PALETTE[i%DASH_PALETTE.length]) };
     }
+    // P&L waterfall: revenue rises from 0, costs step it down (a floating bar), net is the
+    // remainder. `mags` holds each bar's magnitude for the tooltip (the bars are ranges).
+    function pnlData(a){
+      const R = a.pnlRev, C = a.pnlCost, net = R - C;
+      return {
+        labels: [t('dash.pnl.rev'), t('dash.pnl.cost'), t('dash.pnl.net')],
+        ranges: [[0, R], [R - C, R], net >= 0 ? [0, net] : [net, 0]],
+        colors: ['#4ade80', '#f87171', net >= 0 ? '#2dd4bf' : '#f87171'],
+        mags: [R, C, net]
+      };
+    }
+    function dashWaterfallOpts(){
+      return {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{ display:false },
+          tooltip: dashTooltip({ callbacks:{ label:c => ' ' + dashMoney((c.chart.$pnlMag || [])[c.dataIndex] || 0, true) } })
+        },
+        scales:{
+          x:{ grid:{ display:false }, ticks:{ color:'#a1a1aa', font:{ size:11 } } },
+          y:{ grid:{ color:'rgba(255,255,255,.07)' }, ticks:{ color:'#a1a1aa', font:{ size:11 }, callback:v => dashMoney(v, false) } }
+        }
+      };
+    }
 
-    // Build all five charts once (first paint / after returning from the empty state).
+    // Build the dashboard charts once (first paint / after returning from the empty state).
     function createCharts(a){
-      dashCharts.ie = new Chart(document.getElementById('cIE'), {
+      const pnl = pnlData(a);
+      dashCharts.pnl = new Chart(document.getElementById('cPnl'), {
         type:'bar',
-        data:{ labels:a.labels, datasets:[
-          { label:t('dash.income'),   data:a.inc, backgroundColor:'#4ade80', borderRadius:5, maxBarThickness:28 },
-          { label:t('dash.expenses'), data:a.exp, backgroundColor:'#f87171', borderRadius:5, maxBarThickness:28 }
-        ]},
-        options: dashAxisOpts(true)
+        data:{ labels:pnl.labels, datasets:[{ data:pnl.ranges, backgroundColor:pnl.colors, borderRadius:5, maxBarThickness:80 }] },
+        options: dashWaterfallOpts()
       });
+      dashCharts.pnl.$pnlMag = pnl.mags;
       const netCanvas = document.getElementById('cNet');
       dashCharts.net = new Chart(netCanvas, {
         type:'line',
@@ -1344,15 +1446,10 @@
           fill:true, tension:.35, borderWidth:3, pointRadius:3, pointBackgroundColor:'#6c9ce6', pointHoverRadius:6 }] },
         options: dashAxisOpts(false)
       });
-      const de = donutData(a.expCat), di = donutData(a.incCat);
+      const de = donutData(a.expCat);
       dashCharts.exp = new Chart(document.getElementById('cExp'), {
         type:'doughnut',
         data:{ labels:de.labels, datasets:[{ data:de.data, backgroundColor:de.colors, borderColor:'#0f0f10', borderWidth:2, hoverOffset:6 }] },
-        options: dashDonutOpts()
-      });
-      dashCharts.inc = new Chart(document.getElementById('cInc'), {
-        type:'doughnut',
-        data:{ labels:di.labels, datasets:[{ data:di.data, backgroundColor:di.colors, borderColor:'#0f0f10', borderWidth:2, hoverOffset:6 }] },
         options: dashDonutOpts()
       });
     }
@@ -1361,11 +1458,11 @@
     // no destroy/recreate, so filter/data changes morph smoothly instead of flashing.
     // Labels are re-set too so a language switch updates legends in place.
     function updateCharts(a){
-      const ie = dashCharts.ie;
-      ie.data.labels = a.labels;
-      ie.data.datasets[0].label = t('dash.income');   ie.data.datasets[0].data = a.inc;
-      ie.data.datasets[1].label = t('dash.expenses'); ie.data.datasets[1].data = a.exp;
-      ie.update();
+      const pnl = pnlData(a);
+      const pl = dashCharts.pnl;
+      pl.data.labels = pnl.labels;
+      pl.data.datasets[0].data = pnl.ranges; pl.data.datasets[0].backgroundColor = pnl.colors;
+      pl.$pnlMag = pnl.mags; pl.update();
 
       const net = dashCharts.net;
       net.data.labels = a.labels; net.data.datasets[0].label = t('dash.c.net'); net.data.datasets[0].data = a.net; net.update();
@@ -1376,10 +1473,6 @@
       const de = donutData(a.expCat);
       const ce = dashCharts.exp;
       ce.data.labels = de.labels; ce.data.datasets[0].data = de.data; ce.data.datasets[0].backgroundColor = de.colors; ce.update();
-
-      const di = donutData(a.incCat);
-      const ci = dashCharts.inc;
-      ci.data.labels = di.labels; ci.data.datasets[0].data = di.data; ci.data.datasets[0].backgroundColor = di.colors; ci.update();
     }
 
     function destroyCharts(){
@@ -1389,19 +1482,76 @@
 
     function renderDashKpis(a){
       const net = a.totIn - a.totOut;
-      const margin = a.totIn ? net / a.totIn : 0;
       const cash = a.cash.length ? a.cash[a.cash.length-1] : 0;
       const cards = [
-        ['dash.kpi.income',   dashMoney(a.totIn, false),   '#4ade80'],
-        ['dash.kpi.expenses', dashMoney(a.totOut, false),  '#f87171'],
-        ['dash.kpi.net',      dashMoney(net, false),       '#2dd4bf'],
-        ['dash.kpi.margin',   (margin*100).toFixed(1)+'%', '#56b4d8'],
-        ['dash.kpi.cash',     dashMoney(cash, false),      '#6c9ce6'],
-        ['dash.kpi.count',    String(a.count),             '#a1a1aa']
+        ['dash.kpi.income',      dashMoney(a.totIn, false),      '#4ade80'],
+        ['dash.kpi.expenses',    dashMoney(a.totOut, false),     '#f87171'],
+        ['dash.kpi.net',         dashMoney(net, false),          '#2dd4bf'],
+        ['dash.kpi.cash',        dashMoney(cash, false),         '#6c9ce6'],
+        ['dash.kpi.receivable',  dashMoney(a.receivable, false), '#56b4d8'],
+        ['dash.kpi.payable',     dashMoney(a.payable, false),    '#fb923c'],
+        ['dash.kpi.invest',      dashMoney(a.invest, false),     '#a855f7'],
+        ['dash.kpi.dividend',    dashMoney(a.dividend, false),   '#f472b6']
       ];
       document.getElementById('dashKpis').innerHTML = cards.map(([k,val,acc]) =>
         `<div class="kpi" style="--accent:${acc}"><div class="k-label">${esc(t(k))}</div><div class="k-val">${esc(val)}</div></div>`
       ).join('');
+    }
+
+    // P&L card subtitle → live margin %.
+    function renderPnlSub(a){
+      const el = document.getElementById('pnlSub'); if (!el) return;
+      const m = a.pnlRev ? (a.pnlRev - a.pnlCost) / a.pnlRev * 100 : 0;
+      el.textContent = t('dash.pnl.margin') + ' ' + m.toFixed(1) + '%';
+    }
+
+    // One numeric cell (muted when zero so the matrix reads cleanly).
+    function pnlCell(v){ return `<td class="num${Math.round(v) ? '' : ' muted'}">${esc(dashMoney(v, false))}</td>`; }
+    // A section subtotal row followed by its category rows (sorted by total desc).
+    function pnlSection(label, totMap, catMap, months){
+      const per = months.map(m => totMap[m] || 0);
+      const total = per.reduce((s,v) => s + v, 0);
+      let html = `<tr class="r-section"><td class="rowlabel">${esc(label)}</td>${per.map(pnlCell).join('')}${pnlCell(total)}</tr>`;
+      Object.keys(catMap).map(name => {
+        const mp = catMap[name];
+        return { name, mp, tot: months.reduce((s,m) => s + (mp[m] || 0), 0) };
+      }).sort((x,y) => y.tot - x.tot).forEach(c => {
+        html += `<tr class="r-cat"><td class="rowlabel">${esc(c.name)}</td>${months.map(m => pnlCell(c.mp[m] || 0)).join('')}${pnlCell(c.tot)}</tr>`;
+      });
+      return html;
+    }
+    // P&L statement pivot — rows: Profit (net), Income + categories, Expenses + categories; columns: months + total.
+    function renderPnlTable(a){
+      const tbl = document.getElementById('pnlTable'); if (!tbl) return;
+      const months = a.months, labels = a.labels;
+      if (!months.length){ tbl.innerHTML = `<tbody><tr><td class="data-empty">${esc(t('dash.pnl.none'))}</td></tr></tbody>`; return; }
+      const head = `<thead><tr><th class="rowlabel">${esc(t('dash.pnl.title'))}</th>${
+        labels.map(l => `<th>${esc(l)}</th>`).join('')}<th>${esc(t('dash.pnl.total'))}</th></tr></thead>`;
+      const profit = months.map(m => (a.pnlIncTot[m] || 0) - (a.pnlExpTot[m] || 0));
+      const profitTotal = profit.reduce((s,v) => s + v, 0);
+      const profitCell = v => `<td class="num${v < 0 ? ' neg' : ''}">${esc(dashMoney(v, false))}</td>`;
+      let body = `<tr class="r-total r-profit"><td class="rowlabel">${esc(t('dash.pnl.profit'))}</td>${
+        profit.map(profitCell).join('')}${profitCell(profitTotal)}</tr>`;
+      body += pnlSection(t('dash.pnl.income'),   a.pnlIncTot, a.pnlInc, months);
+      body += pnlSection(t('dash.pnl.expenses'), a.pnlExpTot, a.pnlExp, months);
+      tbl.innerHTML = head + '<tbody>' + body + '</tbody>';
+    }
+    // Receivables / payables per counterparty (net open balance), biggest first, with a total row.
+    function renderCpTable(a){
+      const tbl = document.getElementById('cpTable'); if (!tbl) return;
+      const rows = a.cpRows;
+      if (!rows.length){ tbl.innerHTML = `<tbody><tr><td class="data-empty">${esc(t('dash.cp.none'))}</td></tr></tbody>`; return; }
+      const head = `<thead><tr><th class="rowlabel">${esc(t('dash.cp.counterparty'))}</th>` +
+        `<th>${esc(t('dash.cp.payable'))}</th><th>${esc(t('dash.cp.receivable'))}</th></tr></thead>`;
+      const body = rows.map(r =>
+        `<tr><td class="rowlabel">${esc(r.name)}</td>` +
+        `<td class="num${Math.round(r.payable) ? ' neg' : ' muted'}">${esc(dashMoney(r.payable, false))}</td>` +
+        `<td class="num${Math.round(r.receivable) ? ' pos' : ' muted'}">${esc(dashMoney(r.receivable, false))}</td></tr>`
+      ).join('');
+      const totPay = rows.reduce((s,r) => s + r.payable, 0), totRecv = rows.reduce((s,r) => s + r.receivable, 0);
+      const foot = `<tr class="r-total"><td class="rowlabel">${esc(t('dash.pnl.total'))}</td>` +
+        `<td class="num">${esc(dashMoney(totPay, false))}</td><td class="num">${esc(dashMoney(totRecv, false))}</td></tr>`;
+      tbl.innerHTML = head + '<tbody>' + body + foot + '</tbody>';
     }
 
     function renderDashboard(){
@@ -1419,6 +1569,9 @@
 
       const a = dashAgg();
       renderDashKpis(a);
+      renderPnlSub(a);
+      renderPnlTable(a);
+      renderCpTable(a);
       Chart.defaults.font.family = "Inter, system-ui, sans-serif";
       Chart.defaults.color = '#a1a1aa';
 
