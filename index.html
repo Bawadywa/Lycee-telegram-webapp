@@ -243,10 +243,13 @@
     .tx-card::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:4px; }
     .tx-card.in::before{ background:linear-gradient(#4ade80,#2dd4bf); }
     .tx-card.out::before{ background:linear-gradient(#f87171,#ef4444); }
+    .tx-card.recv::before{ background:linear-gradient(#56b4d8,#6c9ce6); }
+    .tx-card.pay::before{ background:linear-gradient(#facc15,#fb923c); }
     .txc-top{ display:flex; align-items:center; gap:10px; }
     .txc-cp{ font-weight:700; font-size:15px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .txc-amt{ flex:none; font-size:17px; font-weight:800; white-space:nowrap; }
     .txc-amt.in{ color:#4ade80; } .txc-amt.out{ color:#f87171; }
+    .txc-amt.recv{ color:#56b4d8; } .txc-amt.pay{ color:#facc15; }
     .txc-row2{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:7px; }
     .txc-date{ font-size:12.5px; color:var(--hint); }
     .txc-acts{ flex:none; display:inline-flex; gap:2px; }
@@ -935,6 +938,18 @@
       const pl = txPL(tx); if (pl === 'income') return 'in'; if (pl === 'expense') return 'out';
       return txCash(tx) === 'in' ? 'in' : 'out';
     }
+    // Visual kind for the transaction list. Accrued receivables/payables move no cash, so
+    // they get a neutral, sign-less treatment (receivable = blue, payable = yellow) instead
+    // of the green +/red − used for realised cash movements. Settled legs stay in/out.
+    function txKind(tx){
+      const s = typeStr(tx);
+      if (/нарахован|accru/.test(s)){
+        if (/дебітор|receivable/.test(s)) return 'recv';  // receivable accrued → blue, no sign
+        if (/кредитор|payable/.test(s))   return 'pay';   // payable accrued → yellow, no sign
+      }
+      return txDir(tx); // 'in' | 'out'
+    }
+    function txSign(kind){ return kind === 'in' ? '+' : (kind === 'out' ? '−' : ''); }
     function curSym(c){ return ({ USD:'$', EUR:'€', UAH:'₴', GBP:'£', PLN:'zł' })[c] || (c ? c + ' ' : ''); }
 
     function renderTable(){
@@ -972,8 +987,8 @@
 
       // Card view (mobile) — same data, CSS toggles between this and the table.
       document.getElementById('txCards').innerHTML = TX.map(tx => {
-        const dir = txDir(tx);
-        const sign = dir === 'in' ? '+' : '−';
+        const dir = txKind(tx);
+        const sign = txSign(dir);
         const cp = escapeHtml(Lycee.pickName(tx.counterparty, lang) || '—');
         const date = escapeHtml(fmtDate(tx.occured_at || tx.date));
         const chips = [
