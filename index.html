@@ -305,6 +305,25 @@
     }
     @media (min-width:1100px){ .kpis{ grid-template-columns:repeat(6,1fr); } }
 
+    /* Dashboard call-to-action */
+    .dash-cta{
+      margin-top:20px; padding:26px 20px; border-radius:20px; text-align:center; min-width:0;
+      background:
+        radial-gradient(120% 130% at 0% 0%, rgba(74,222,128,.12), transparent 60%),
+        radial-gradient(120% 130% at 100% 100%, rgba(168,85,247,.14), transparent 60%),
+        var(--card_bg);
+      border:1px solid var(--border);
+      backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    }
+    .dash-cta h3{ font-size:18px; font-weight:800; margin:0; line-height:1.3; }
+    .dash-cta p{ color:var(--hint); font-size:14px; margin:8px auto 0; max-width:440px; }
+    .dash-cta .dash-cta-btn{
+      width:auto; max-width:100%; margin-top:18px; padding:13px 26px;
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      text-decoration:none; vertical-align:middle;
+    }
+    .dash-cta .dash-cta-btn svg{ width:18px; height:18px; flex:none; }
+
     /* ---------- Custom select + date picker (desktop enhancement) ---------- */
     .ui-select{ position:relative; width:100%; }
     .ui-trigger{
@@ -566,6 +585,15 @@
               <div class="canvas-host"><canvas id="cInc"></canvas></div>
             </div>
           </div>
+
+          <div class="dash-cta">
+            <h3 data-i18n="dash.cta.title">Want a live dashboard like this for your business?</h3>
+            <p data-i18n="dash.cta.sub">Lycee builds it from your data — automatically, updated every day.</p>
+            <a class="btn-gradient dash-cta-btn" id="dashCtaBtn" href="https://lyceedata.com" target="_blank" rel="noopener">
+              <span data-i18n="dash.cta.btn">Contact us at lyceedata.com</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </a>
+          </div>
         </div>
 
         <div id="dashEmpty" class="empty" style="display:none">
@@ -591,7 +619,7 @@
     /* ---------------- i18n (merged across all three views) ---------------- */
     const dict = {
       en:{
-        'tab.new':'New', 'tab.list':'Transactions',
+        'tab.new':'Add transaction', 'tab.list':'Transactions',
         'form.title':'New transaction', 'form.subtitle':'Add an entry to your ledger.',
         'form.edit.title':'Edit transaction', 'form.edit.subtitle':'Update this entry.',
         'btn.save':'Save changes', 'btn.cancel':'Cancel', 'toast.updated':'Transaction updated',
@@ -627,10 +655,13 @@
         'dash.c.inc':'Income structure', 'dash.c.inc.sub':'By category',
         'dash.empty.title':'No data yet', 'dash.empty.text':'Add transactions to see your dashboard.',
         'dash.uncat':'Uncategorized', 'dash.none':'No data',
+        'dash.cta.title':'Want a live dashboard like this for your business?',
+        'dash.cta.sub':'Lycee builds it from your data — automatically, updated every day.',
+        'dash.cta.btn':'Contact us at lyceedata.com',
         'theme':'Theme'
       },
       uk:{
-        'tab.new':'Нова', 'tab.list':'Транзакції',
+        'tab.new':'Додати транзакцію', 'tab.list':'Транзакції',
         'form.title':'Нова транзакція', 'form.subtitle':'Додайте запис до вашого журналу.',
         'form.edit.title':'Редагувати транзакцію', 'form.edit.subtitle':'Оновіть цей запис.',
         'btn.save':'Зберегти зміни', 'btn.cancel':'Скасувати', 'toast.updated':'Транзакцію оновлено',
@@ -666,6 +697,9 @@
         'dash.c.inc':'Структура доходів', 'dash.c.inc.sub':'За категоріями',
         'dash.empty.title':'Поки немає даних', 'dash.empty.text':'Додайте транзакції, щоб побачити дашборд.',
         'dash.uncat':'Без категорії', 'dash.none':'Немає даних',
+        'dash.cta.title':'Хочете такий самий живий дашборд для свого бізнесу?',
+        'dash.cta.sub':'Lycee збудує його з ваших даних — автоматично, з оновленням щодня.',
+        'dash.cta.btn':'Зв\'яжіться з нами на lyceedata.com',
         'theme':'Тема'
       }
     };
@@ -1340,6 +1374,8 @@
       if (dashState.from && dashState.to && dashState.to < dashState.from) dashState.from = dashState.to;
       dashSyncControls(); renderDashboard();
     };
+    // CTA → open the site in the system browser (a plain target=_blank anchor does this;
+    // we deliberately do NOT use tg.openLink, which routes through Telegram's in-app browser).
 
     // Re-fit charts when the viewport changes. Telegram's fullscreen toggle (esp. desktop
     // on→off) resizes the webview without always firing a resize Chart.js catches in time,
