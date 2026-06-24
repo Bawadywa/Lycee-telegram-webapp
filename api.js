@@ -177,7 +177,7 @@
   // returns only the categories that belong to it. Pass the selected type's id.
   function getCategories(typeId) { return req('/categories' + qp({ type_id: typeId })); }
   function getCounterparties() { return req('/counterparties' + qp()); } // backend requires user_id
-  function getTransactionTypes() { return req('/types' + qp()); }
+  function getTransactionTypes() { return req('/types' + qp()); } // GET /types — backend requires user_id
 
   /* -------- transactions -------- */
   // Every successful fetch refreshes the shared cache so other tabs render instantly.

@@ -491,7 +491,7 @@
 
           <label data-i18n="field.date">Date</label>
           <div class="date-field" id="dateWrap">
-            <input id="date" type="date" required />
+            <input id="date" type="date" min="2025-01-01" required />
             <span class="date-placeholder" data-i18n="ph.date">📅 Select date</span>
           </div>
 
@@ -610,14 +610,14 @@
           <div class="dash-ctl">
             <label data-i18n="dash.f.from">From</label>
             <div class="date-field" id="dashFromWrap">
-              <input id="dashFrom" type="date">
+              <input id="dashFrom" type="date" min="2025-01-01">
               <span class="date-placeholder" data-i18n="dash.ph.from">📅 From date</span>
             </div>
           </div>
           <div class="dash-ctl">
             <label data-i18n="dash.f.to">To</label>
             <div class="date-field" id="dashToWrap">
-              <input id="dashTo" type="date">
+              <input id="dashTo" type="date" min="2025-01-01">
               <span class="date-placeholder" data-i18n="dash.ph.to">📅 To date</span>
             </div>
           </div>
