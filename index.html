@@ -220,10 +220,18 @@
     /* Direction colours mirror the mobile cards (.txc-amt / .tx-card::before). */
     .t-total.in{ color:#4ade80; } .t-total.out{ color:#f87171; }
     .t-total.recv{ color:#56b4d8; } .t-total.pay{ color:#facc15; }
-    tbody tr.in   td:first-child{ box-shadow:inset 3px 0 0 #4ade80; }
-    tbody tr.out  td:first-child{ box-shadow:inset 3px 0 0 #f87171; }
-    tbody tr.recv td:first-child{ box-shadow:inset 3px 0 0 #56b4d8; }
-    tbody tr.pay  td:first-child{ box-shadow:inset 3px 0 0 #facc15; }
+    /* Left accent bar — inset top/bottom so a small gap shows between rows. */
+    tbody td:first-child{ position:relative; }
+    tbody tr.in td:first-child::before,
+    tbody tr.out td:first-child::before,
+    tbody tr.recv td:first-child::before,
+    tbody tr.pay td:first-child::before{
+      content:""; position:absolute; left:0; top:8px; bottom:8px; width:3px; border-radius:3px;
+    }
+    tbody tr.in   td:first-child::before{ background:#4ade80; }
+    tbody tr.out  td:first-child::before{ background:#f87171; }
+    tbody tr.recv td:first-child::before{ background:#56b4d8; }
+    tbody tr.pay  td:first-child::before{ background:#facc15; }
     .t-comment{ color:var(--hint); max-width:160px; }
     .cur-chip{
       display:inline-block; padding:3px 9px; border-radius:999px;

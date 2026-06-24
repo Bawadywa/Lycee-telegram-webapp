@@ -265,7 +265,9 @@
       pop.querySelectorAll('.ui-cal-day:not(.empty):not(.disabled)').forEach(function (c) { c.addEventListener('click', function () { pick(c.dataset.iso); }); });
       pop.querySelector('[data-act="clear"]').addEventListener('click', function () { pick(''); });
       pop.querySelector('[data-act="today"]').addEventListener('click', function () {
-        var t = new Date();
+        // Compare at midnight, not the live timestamp — otherwise the current time-of-day
+        // makes "today" read as > a max that is itself today, and the button refuses to pick.
+        var t = stripTime(new Date());
         if ((minD && t < stripTime(minD)) || (maxD && t > stripTime(maxD))) { viewYear = t.getFullYear(); viewMonth = t.getMonth(); render(); return; }
         pick(toISO(t));
       });
