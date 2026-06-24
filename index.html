@@ -719,7 +719,6 @@
         'toast.cleared':'All cleared',
         'tab.dash':'Dashboard',
         'dash.f.currency':'Currency', 'dash.f.from':'From', 'dash.f.to':'To', 'dash.f.cats':'Categories',
-        'dash.cur.all':'All (₴)',
         'dash.ph.from':'📅 From date', 'dash.ph.to':'📅 To date',
         'dash.kpi.income':'Income', 'dash.kpi.expenses':'Expenses', 'dash.kpi.net':'Net profit',
         'dash.kpi.cash':'Cash balance',
@@ -769,7 +768,6 @@
         'toast.cleared':'Очищено',
         'tab.dash':'Дашборд',
         'dash.f.currency':'Валюта', 'dash.f.from':'Від', 'dash.f.to':'До', 'dash.f.cats':'Категорії',
-        'dash.cur.all':'Всі (₴)',
         'dash.ph.from':'📅 Дата від', 'dash.ph.to':'📅 Дата до',
         'dash.kpi.income':'Доходи', 'dash.kpi.expenses':'Витрати', 'dash.kpi.net':'Чистий прибуток',
         'dash.kpi.cash':'Залишок коштів',
@@ -1225,13 +1223,23 @@
        derived from the live transactions, so it updates the moment a tx is added/removed. */
     const DASH_PALETTE = ['#4ade80','#2dd4bf','#a855f7','#56b4d8','#f59e0b','#f472b6','#6c9ce6','#34d399','#fb923c','#e879f9','#facc15','#38bdf8'];
     const CUR_SYMBOL = { USD:'$', EUR:'€', UAH:'₴', GBP:'£', PLN:'zł' };
+    // Fallback cross-rates (UAH per 1 unit), mirroring the backend CURRENCY_RATES.
+    // The dashboard normally uses the backend's per-transaction total_uah/usd/eur
+    // (each converted with the historical rate for that tx's date); these flat rates
+    // are only used when a tx's date has no stored rate and the field comes back null.
+    const CUR_RATES_UAH = { USD: 44.9125, EUR: 51.4563, UAH: 1 };
+    function convertAmount(total, from, to){
+      const n = Number(total) || 0;
+      const r = CUR_RATES_UAH[from], q = CUR_RATES_UAH[to];
+      return (r && q) ? n * r / q : n; // unknown currency → leave as-is
+    }
     const dashState = { currency:null, from:'', to:'', cats:null }; // from/to = '' (open); cats:null = all
     let dashCharts = {};
 
     // Money formatter respecting the active currency + locale. `full`=exact (tooltips/KPIs),
-    // otherwise compact (axes). The "ALL" view aggregates everything in UAH (total_uah).
+    // otherwise compact (axes). All amounts are shown in the selected dashboard currency.
     function dashMoney(v, full){
-      const cur = dashState.currency === 'ALL' ? 'UAH' : (dashState.currency || '');
+      const cur = dashState.currency || 'UAH';
       const sym = CUR_SYMBOL[cur] || (cur ? cur + ' ' : '');
       const sign = v < 0 ? '-' : '';
       const a = Math.abs(v);
@@ -1297,22 +1305,26 @@
     function catName(tx){ return Lycee.pickName(tx.category, lang) || t('dash.uncat'); }
     function cpName(tx){ return Lycee.pickName(tx.counterparty, lang) || t('dash.nocp'); }
 
-    // Currency filter options: always offer ALL + the three defaults, plus any other
-    // currency actually present in the data. ALL aggregates everything in UAH.
+    // Currency filter options. Selecting one converts EVERY transaction into that
+    // currency (it no longer filters the rows). UAH is first → the default view.
     function dashCurrencies(){
-      const list = ['ALL', 'USD', 'EUR', 'UAH'];
+      const list = ['UAH', 'USD', 'EUR'];
       TX.forEach(tx => { const c = tx.currency; if (c && list.indexOf(c) === -1) list.push(c); });
       return list;
     }
-    // True when the dashboard is showing every transaction (converted to UAH).
-    function dashIsAll(){ return dashState.currency === 'ALL'; }
-    // Rows in scope of the selected currency ('ALL' = every transaction).
-    function dashCurRows(){
-      return dashIsAll() ? TX.slice() : TX.filter(tx => (tx.currency || '') === dashState.currency);
-    }
-    // Amount used for aggregation: native total per-currency, or UAH-converted under ALL.
+    // Every transaction is always in scope now — the currency filter changes the
+    // display/aggregation currency, not which rows are shown.
+    function dashCurRows(){ return TX.slice(); }
+    // Amount used for aggregation, in the selected dashboard currency. The backend
+    // pre-computes total_uah / total_usd / total_eur per transaction (using the
+    // historical rate for that tx's date), so we just pick the matching field. If
+    // that date has no stored rate the field is null → fall back to a flat client
+    // conversion so the transaction still contributes instead of vanishing.
     function txAmount(tx){
-      const v = dashIsAll() ? (tx.total_uah != null ? tx.total_uah : tx.total) : tx.total;
+      const target = dashState.currency || 'UAH';
+      const field = target === 'USD' ? 'total_usd' : (target === 'EUR' ? 'total_eur' : 'total_uah');
+      let v = tx[field];
+      if (v == null) v = convertAmount(tx.total, tx.currency || target, target);
       return Math.abs(Number(v) || 0);
     }
     function dashRows(){
@@ -1329,11 +1341,12 @@
       if (!dashState.currency || curs.indexOf(dashState.currency) === -1) dashState.currency = curs[0] || null;
       const selC = document.getElementById('dashCurrency');
       selC.innerHTML = curs.map(c => {
-        const labelC = (c === 'ALL') ? t('dash.cur.all') : c;
+        const labelC = CUR_SYMBOL[c] ? (c + ' (' + CUR_SYMBOL[c] + ')') : c;
         return `<option value="${esc(c)}" ${c===dashState.currency?'selected':''}>${esc(labelC)}</option>`;
       }).join('');
 
-      // Everything below scopes to the selected currency ('ALL' = every transaction).
+      // Date-range bounds below span every transaction (all rows are always in scope;
+      // the currency filter converts amounts, it doesn't drop rows).
       const inCur = dashCurRows();
 
       // Date pickers — constrain to the min/max dates present, and reflect current state.
