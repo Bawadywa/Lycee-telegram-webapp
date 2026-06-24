@@ -173,7 +173,9 @@
   }
 
   /* -------- reference data (dropdowns) -------- */
-  function getCategories() { return req('/categories' + qp()); }
+  // Categories are scoped to a transaction type — the backend requires type_id and
+  // returns only the categories that belong to it. Pass the selected type's id.
+  function getCategories(typeId) { return req('/categories' + qp({ type_id: typeId })); }
   function getCounterparties() { return req('/counterparties' + qp()); } // backend requires user_id
   function getTransactionTypes() { return req('/transaction_types' + qp()); }
 

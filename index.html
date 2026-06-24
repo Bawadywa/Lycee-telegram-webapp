@@ -920,13 +920,38 @@
     async function loadOptions(){
       if (!Lycee.configured){ const el = document.getElementById('themeHint'); if (el) el.textContent = t('hint.config'); return; }
       try {
-        const [types, cats, cps] = await Promise.all([
-          Lycee.getTransactionTypes(), Lycee.getCategories(), Lycee.getCounterparties()
+        // Categories are type-scoped, so they're NOT loaded here — they're fetched
+        // on demand once a type is chosen (see loadCategoriesForType). Start empty.
+        const [types, cps] = await Promise.all([
+          Lycee.getTransactionTypes(), Lycee.getCounterparties()
         ]);
-        TYPES = types || []; CATS = cats || []; CPS = cps || [];
+        TYPES = types || []; CPS = cps || []; CATS = [];
         refillSelects();
       } catch(e){ console.error(e); showToast(t('toast.error')); }
     }
+
+    // Fetch the categories belonging to the chosen transaction type and repopulate
+    // the category dropdown. Resets the current selection unless `keepValue` matches
+    // a still-valid category (used when pre-filling the edit form).
+    async function loadCategoriesForType(typeId, keepValue){
+      const prev = keepValue ? catSel.value : '';
+      if (!typeId){
+        CATS = [];
+      } else {
+        try { CATS = (await Lycee.getCategories(typeId)) || []; }
+        catch(e){ console.error(e); CATS = []; showToast(t('toast.error')); }
+      }
+      fillSelect(catSel, CATS);
+      if (prev && CATS.some(c => String(c.id) === String(prev))) catSel.value = prev;
+      else catSel.selectedIndex = 0; // back to the "Select…" placeholder
+      if (window.LyceeUI) LyceeUI.refreshAll();
+    }
+
+    // When the type changes, the previous category may no longer belong to it —
+    // reload the category list for the new type and clear the old selection.
+    if (typeSel) typeSel.addEventListener('change', () => {
+      loadCategoriesForType(parseInt(typeSel.value, 10) || 0, false);
+    });
 
     /* ---------------- Transactions ---------------- */
     let TX = Lycee.cachedTransactions() || [];
@@ -1095,7 +1120,9 @@
     function resetForm(){
       document.getElementById('total').value = '';
       document.getElementById('comment').value = '';
-      typeSel.selectedIndex = 0; catSel.selectedIndex = 0; cpSel.selectedIndex = 0;
+      typeSel.selectedIndex = 0; cpSel.selectedIndex = 0;
+      // No type selected → no categories. Empty the list, not just the selection.
+      CATS = []; fillSelect(catSel, CATS);
       if (window.LyceeUI) LyceeUI.refreshAll();
     }
 
@@ -1112,7 +1139,7 @@
       genSection.style.display    = editing ? 'none' : '';
     }
 
-    function startEdit(id){
+    async function startEdit(id){
       const tx = TX.find(x => String(x.id) === String(id));
       if (!tx) return;
       editingId = tx.id;
@@ -1120,7 +1147,10 @@
       syncDate();
       document.getElementById('total').value = tx.total != null ? tx.total : '';
       document.getElementById('currency').value = tx.currency || 'USD';
-      typeSel.value = String(refId(tx.type, tx.type_id));
+      const typeId = refId(tx.type, tx.type_id);
+      typeSel.value = String(typeId);
+      // Load this type's categories before selecting, so the option exists in the list.
+      await loadCategoriesForType(parseInt(typeId, 10) || 0, false);
       catSel.value  = String(refId(tx.category, tx.category_id));
       cpSel.value   = String(refId(tx.counterparty, tx.counterparty_id));
       document.getElementById('comment').value = tx.comment || '';
