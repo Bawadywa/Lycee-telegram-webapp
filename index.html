@@ -217,6 +217,13 @@
     tbody tr:last-child td{ border-bottom:none; }
     .t-date{ white-space:nowrap; color:var(--text); }
     .t-total{ font-weight:800; white-space:nowrap; }
+    /* Direction colours mirror the mobile cards (.txc-amt / .tx-card::before). */
+    .t-total.in{ color:#4ade80; } .t-total.out{ color:#f87171; }
+    .t-total.recv{ color:#56b4d8; } .t-total.pay{ color:#facc15; }
+    tbody tr.in   td:first-child{ box-shadow:inset 3px 0 0 #4ade80; }
+    tbody tr.out  td:first-child{ box-shadow:inset 3px 0 0 #f87171; }
+    tbody tr.recv td:first-child{ box-shadow:inset 3px 0 0 #56b4d8; }
+    tbody tr.pay  td:first-child{ box-shadow:inset 3px 0 0 #facc15; }
     .t-comment{ color:var(--hint); max-width:160px; }
     .cur-chip{
       display:inline-block; padding:3px 9px; border-radius:999px;
@@ -992,10 +999,13 @@
       }
       content.style.display = 'block';
       empty.style.display = 'none';
-      document.getElementById('rows').innerHTML = TX.map(tx => `
-        <tr data-id="${escapeHtml(tx.id)}">
+      document.getElementById('rows').innerHTML = TX.map(tx => {
+        const dir = txKind(tx);   // in | out | recv | pay — same classifier the cards use
+        const sign = txSign(dir);
+        return `
+        <tr class="${dir}" data-id="${escapeHtml(tx.id)}">
           <td class="t-date">${fmtDate(tx.occured_at || tx.date)}</td>
-          <td class="t-total">${fmtNum(tx.total)}</td>
+          <td class="t-total ${dir}">${sign}${fmtNum(tx.total)}</td>
           <td><span class="cur-chip">${escapeHtml(tx.currency)}</span></td>
           <td>${tx.type ? `<span class="cur-chip">${escapeHtml(Lycee.pickName(tx.type, lang))}</span>` : '—'}</td>
           <td>${tx.category ? `<span class="cur-chip">${escapeHtml(Lycee.pickName(tx.category, lang))}</span>` : '—'}</td>
@@ -1005,8 +1015,8 @@
             <button class="edit" type="button" aria-label="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></button>
             <button class="del" type="button" aria-label="Delete">✕</button>
           </div></td>
-        </tr>
-      `).join('');
+        </tr>`;
+      }).join('');
 
       // Card view (mobile) — same data, CSS toggles between this and the table.
       document.getElementById('txCards').innerHTML = TX.map(tx => {
