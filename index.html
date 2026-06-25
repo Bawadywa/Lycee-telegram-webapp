@@ -1283,11 +1283,13 @@
     // P&L (accrual) classification — what counts as operating income / expense.
     // Financing & transfers (loans, investments, dividends, and the settlement of
     // receivables/payables) are NOT P&L, so they return '' and stay out of the
-    // income/expense charts. An accrued payable IS a cost incurred → expense.
+    // income/expense charts. An accrued receivable IS revenue earned → income, and an
+    // accrued payable IS a cost incurred → expense (kept symmetric with pnlClass).
     function txPL(tx){
       const s = typeStr(tx);
       if (/дохід|дохо|income|revenue|продаж|продано|sold|надходж/.test(s)) return 'income';
       if (/витрат|expense|cost|собівар/.test(s)) return 'expense';
+      if (/(дебіторк|receivable).*(нарахован|accru)|(нарахован|accru).*(дебіторк|receivable)/.test(s)) return 'income';
       if (/(кредиторк|payable).*(нарахован|accru)|(нарахован|accru).*(кредиторк|payable)/.test(s)) return 'expense';
       return '';
     }
