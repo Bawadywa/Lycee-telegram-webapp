@@ -171,9 +171,11 @@
     return text ? JSON.parse(text) : null;
   }
 
+  // Build a query string from the extra params only. The user is identified by
+  // the signed initData auth header (see req()), never by a client-sent user_id.
   var qp = function (extra) {
-    var p = new URLSearchParams(Object.assign({ user_id: userId }, extra || {}));
-    return '?' + p.toString();
+    var s = new URLSearchParams(extra || {}).toString();
+    return s ? '?' + s : '';
   };
 
   /* -------- user --------
@@ -187,7 +189,7 @@
       if (!userId) return null;
       if (!base) return null; // API_BASE not set yet — nothing to call
       try {
-        return await req('/user', { method: 'POST', body: JSON.stringify({ user_id: userId }) });
+        return await req('/user', { method: 'POST' }); // user derived from initData header
       } catch (e) { console.error('[Lycee] ensureUser failed', e); return null; }
     })();
     return _userPromise;
@@ -197,8 +199,8 @@
   // Categories are scoped to a transaction type — the backend requires type_id and
   // returns only the categories that belong to it. Pass the selected type's id.
   function getCategories(typeId) { return req('/categories' + qp({ type_id: typeId })); }
-  function getCounterparties() { return req('/counterparties' + qp()); } // backend requires user_id
-  function getTransactionTypes() { return req('/types' + qp()); } // GET /types — backend requires user_id
+  function getCounterparties() { return req('/counterparties' + qp()); } // user from initData header
+  function getTransactionTypes() { return req('/types' + qp()); }        // user from initData header
 
   /* -------- transactions -------- */
   // Every successful fetch refreshes the shared cache so other tabs render instantly.
@@ -209,19 +211,17 @@
   }
   function generateRandom(count) { return req('/transactions/random' + qp({ count: count || 5 }), { method: 'POST' }); }
   function createTransaction(data) {
-    var body = Object.assign({ user_id: userId }, data);
-    return req('/transaction', { method: 'POST', body: JSON.stringify(body) });
+    return req('/transaction', { method: 'POST', body: JSON.stringify(data) });
   }
-  // PUT /transaction expects the full record incl. { id, user_id } (TransactionUpdate schema)
+  // PUT /transaction expects the full record incl. { id } (TransactionUpdate schema)
   function updateTransaction(data) {
-    var body = Object.assign({ user_id: userId }, data);
-    return req('/transaction', { method: 'PUT', body: JSON.stringify(body) });
+    return req('/transaction', { method: 'PUT', body: JSON.stringify(data) });
   }
-  // DELETE /transaction expects a JSON body { id, user_id } (TransactionDelete schema)
+  // DELETE /transaction expects a JSON body { id } (TransactionDelete schema)
   function deleteTransaction(id) {
-    return req('/transaction', { method: 'DELETE', body: JSON.stringify({ id: Number(id), user_id: userId }) });
+    return req('/transaction', { method: 'DELETE', body: JSON.stringify({ id: Number(id) }) });
   }
-  // DELETE /transactions takes only user_id (query param) — clears all for the user
+  // DELETE /transactions clears all transactions for the authenticated user
   function clearTransactions() { return req('/transactions' + qp(), { method: 'DELETE' }); }
 
   /* -------- helpers -------- */
