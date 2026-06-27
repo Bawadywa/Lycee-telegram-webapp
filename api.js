@@ -7,6 +7,8 @@
    Why a wrapper:
    - one place to prefix API_BASE and send the ngrok-skip-browser-warning header
      (free ngrok otherwise returns an HTML interstitial that breaks .json()),
+   - attaches the signed Telegram initData as an `Authorization: tma …` header
+     on every request, so the backend can verify it and authenticate the user,
    - resolves the Telegram user id (with a browser/dev fallback),
    - keeps the 3 HTML pages small and consistent.
    ============================================================================ */
@@ -90,6 +92,20 @@
     }
   } catch (e) {}
 
+  // --- raw signed initData (the actual auth credential) -------------------
+  // Unlike the user id above (which comes from initDataUnsafe and is spoofable),
+  // the RAW initData string is signed by Telegram with the bot token. We send it
+  // on every request in an `Authorization: tma <initData>` header; the backend
+  // verifies the hash and derives the user from it (it must NOT trust a client
+  // user_id). Single-page app, so we just read it live from the SDK each load
+  // (or the launch fragment as a fallback) — no cross-page persistence needed.
+  function rawInitData() {
+    if (tg && tg.initData) return tg.initData;                  // normal path
+    var hash = (location.hash || '').replace(/^#/, '');
+    return new URLSearchParams(hash).get('tgWebAppData') || ''; // launch fragment fallback
+  }
+  var initData = rawInitData();
+
   // Carry the Telegram launch fragment across in-app navigation so initData stays
   // available on every tab (defence-in-depth alongside the persisted id above).
   function preserveHashOnLinks() {
@@ -137,6 +153,11 @@
       'Accept': 'application/json',
       'ngrok-skip-browser-warning': 'true'
     }, opts.headers || {});
+    // Authenticate every request with the signed Telegram initData. The backend
+    // verifies the hash and derives the user from it — don't trust client user_id.
+    if (initData && !headers['Authorization']) {
+      headers['Authorization'] = 'tma ' + initData;
+    }
     if (opts.body != null && typeof opts.body === 'string') {
       headers['Content-Type'] = 'application/json';
     }
@@ -216,6 +237,7 @@
   window.Lycee = {
     base: base,
     userId: userId,
+    initData: initData,
     inTelegram: inTelegram,
     configured: !!base,
     ready: ready,
