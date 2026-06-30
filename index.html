@@ -178,15 +178,22 @@
     input[type="number"]::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
     input[type="number"]{ -moz-appearance:textfield; appearance:textfield; }
     .date-field{ position:relative; }
-    .date-placeholder{ display:none; }
+    .date-placeholder, .date-value{ display:none; }
     @media (hover:none) and (pointer:coarse){
-      .date-placeholder{
-        display:flex; align-items:center; gap:0.375rem;
+      .date-placeholder, .date-value{
+        align-items:center; gap:0.375rem;
         position:absolute; left:0.8125rem; top:50%; transform:translateY(-50%);
-        pointer-events:none; color:var(--hint); font-size:0.9375rem;
+        pointer-events:none; font-size:0.9375rem;
       }
+      .date-placeholder{ display:flex; color:var(--hint); }
+      .date-value{ color:var(--text); }
       .date-field:focus-within .date-placeholder,
       .date-field.has-value .date-placeholder{ display:none; }
+      /* Native date inputs render their value in the OS locale and can't be reformatted,
+         so on mobile we overlay our own locale-formatted text (which includes the Ukrainian
+         "р." year suffix) and make the native value transparent. */
+      .date-field.has-value .date-value{ display:flex; }
+      .date-field.has-value input[type="date"]{ color:transparent; }
     }
 
     /* ---------- Buttons ---------- */
@@ -514,6 +521,8 @@
     .ui-opt.disabled{ color:var(--hint); opacity:.6; cursor:default; }
     .ui-check{ width:1rem; height:1rem; flex:none; color:#2dd4bf; opacity:0; }
     .ui-opt.selected .ui-check{ opacity:1; }
+    /* Multi-select "All" (clear) row — separated from the option list below it. */
+    .ui-opt-all{ border-bottom:0.0625rem solid var(--border); margin-bottom:0.1875rem; padding-bottom:0.625rem; border-radius:0.5625rem 0.5625rem 0 0; }
 
     /* calendar */
     .ui-cal{ width:18.75rem; max-width:calc(100vw - 1rem); }
@@ -587,6 +596,7 @@
           <div class="date-field" id="dateWrap">
             <input id="date" type="date" min="2025-01-01" required />
             <span class="date-placeholder" data-i18n="ph.date">📅 Select date</span>
+            <span class="date-value"></span>
           </div>
 
           <div class="row2">
@@ -676,11 +686,11 @@
               </div>
               <div class="dash-ctl">
                 <label data-i18n="tbl.f.cat">Category</label>
-                <select id="fCat"></select>
+                <select id="fCat" multiple></select>
               </div>
               <div class="dash-ctl">
                 <label data-i18n="field.counterparty">Counterparty</label>
-                <select id="fCp"></select>
+                <select id="fCp" multiple></select>
               </div>
               <div class="dash-ctl">
                 <label data-i18n="tbl.f.cur">Currency</label>
@@ -691,6 +701,7 @@
                 <div class="date-field" id="fFromWrap">
                   <input id="fFrom" type="date" min="2025-01-01">
                   <span class="date-placeholder" data-i18n="dash.ph.from">📅 From date</span>
+                  <span class="date-value"></span>
                 </div>
               </div>
               <div class="dash-ctl">
@@ -698,6 +709,7 @@
                 <div class="date-field" id="fToWrap">
                   <input id="fTo" type="date" min="2025-01-01">
                   <span class="date-placeholder" data-i18n="dash.ph.to">📅 To date</span>
+                  <span class="date-value"></span>
                 </div>
               </div>
             </div>
@@ -755,6 +767,7 @@
             <div class="date-field" id="dashFromWrap">
               <input id="dashFrom" type="date" min="2025-01-01">
               <span class="date-placeholder" data-i18n="dash.ph.from">📅 From date</span>
+              <span class="date-value"></span>
             </div>
           </div>
           <div class="dash-ctl">
@@ -762,6 +775,7 @@
             <div class="date-field" id="dashToWrap">
               <input id="dashTo" type="date" min="2025-01-01">
               <span class="date-placeholder" data-i18n="dash.ph.to">📅 To date</span>
+              <span class="date-value"></span>
             </div>
           </div>
         </div>
@@ -972,6 +986,7 @@
       refillSelects();
       renderTable();     // re-localize dates / numbers / names
       try { dashOnData(); } catch(e){}  // re-localize dashboard charts + tables if it's open
+      try { syncAllDateFields(); } catch(e){}  // re-localize the mobile date overlays (р. suffix)
       if (window.LyceeUI) LyceeUI.refreshAll();  // relocalize custom select/date widgets
     }
     document.getElementById('langBtn').onclick = () => {
@@ -1151,7 +1166,7 @@
 
     /* ---------------- Transactions filters + sum row ---------------- */
     // Filter state for the Transactions table (empty string = no filter on that field).
-    const tableFilter = { type:'', cat:'', cp:'', cur:'', from:'', to:'' };
+    const tableFilter = { type:'', cat:[], cp:[], cur:'', from:'', to:'' };
 
     // Distinct {id,name_en,name_uk} reference objects present in TX for a given key.
     function distinctRef(key){
@@ -1171,29 +1186,38 @@
         items.map(it => `<option value="${esc(it.value)}"${String(it.value) === String(current) ? ' selected' : ''}>${esc(it.label)}</option>`).join('');
       if (!items.some(it => String(it.value) === String(current))) sel.value = '';
     }
+    // Multi-select fill (Category / Counterparty filters): no "All" option — an empty
+    // selection means "all". Re-marks the still-present options listed in `current`.
+    function fillMultiSelect(sel, items, current){
+      const cur = new Set((current || []).map(String));
+      sel.innerHTML = items.map(it =>
+        `<option value="${esc(it.value)}"${cur.has(String(it.value)) ? ' selected' : ''}>${esc(it.label)}</option>`
+      ).join('');
+    }
+    const selectedValues = (sel) => Array.from(sel.selectedOptions).map(o => o.value);
     // Repopulate every filter control from the current TX set + reflect the filter state.
     function syncTableFilters(){
       const fType = document.getElementById('fType'), fCat = document.getElementById('fCat'),
             fCp = document.getElementById('fCp'), fCur = document.getElementById('fCur');
       fillFilterSelect(fType, distinctRef('type').sort(byLocaleName).map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.type);
-      fillFilterSelect(fCat,  distinctRef('category').sort(byLocaleName).map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.cat);
+      fillMultiSelect(fCat,  distinctRef('category').sort(byLocaleName).map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.cat);
       // Counterparties sorted by their name in the current language (matches the add form).
-      fillFilterSelect(fCp,   distinctRef('counterparty').sort(byLocaleName).map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.cp);
+      fillMultiSelect(fCp,   distinctRef('counterparty').sort(byLocaleName).map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.cp);
       fillFilterSelect(fCur,  distinctCurrencies().map(c => ({ value:c, label:c })), tableFilter.cur);
       // A previously-selected option may have vanished (e.g. its last tx was deleted).
-      tableFilter.type = fType.value; tableFilter.cat = fCat.value; tableFilter.cp = fCp.value; tableFilter.cur = fCur.value;
+      tableFilter.type = fType.value; tableFilter.cur = fCur.value;
+      tableFilter.cat = selectedValues(fCat); tableFilter.cp = selectedValues(fCp);
       const fFrom = document.getElementById('fFrom'), fTo = document.getElementById('fTo');
       fFrom.value = tableFilter.from; fTo.value = tableFilter.to;
-      fFrom.closest('.date-field').classList.toggle('has-value', !!fFrom.value);
-      fTo.closest('.date-field').classList.toggle('has-value', !!fTo.value);
+      syncDateField(fFrom); syncDateField(fTo);
       if (window.LyceeUI) LyceeUI.refreshAll();
     }
     // The TX rows passing the active filters.
     function filterTX(){
       return TX.filter(tx => {
         if (tableFilter.type && String(tx.type && tx.type.id) !== tableFilter.type) return false;
-        if (tableFilter.cat && String(tx.category && tx.category.id) !== tableFilter.cat) return false;
-        if (tableFilter.cp && String(tx.counterparty && tx.counterparty.id) !== tableFilter.cp) return false;
+        if (tableFilter.cat.length && !tableFilter.cat.includes(String(tx.category && tx.category.id))) return false;
+        if (tableFilter.cp.length && !tableFilter.cp.includes(String(tx.counterparty && tx.counterparty.id))) return false;
         if (tableFilter.cur && tx.currency !== tableFilter.cur) return false;
         const iso = String(tx.occured_at || tx.date || '').slice(0,10);
         if (tableFilter.from && !(iso && iso >= tableFilter.from)) return false;
@@ -1201,26 +1225,36 @@
         return true;
       });
     }
-    // Signed amount for the sum row. Money received counts as +: realised cash-in, accrued
-    // receivable, and a loan drawdown (accrued payable in the loan category — cash received
-    // against the new liability, "we got the money"). Every other accrued payable and every
-    // realised cash-out is −.
-    function txSignedAmount(tx){
-      const k = txKind(tx); const v = Number(tx.total) || 0;
-      if (k === 'pay') return isLoanDrawdown(tx) ? v : -v;
-      return (k === 'in' || k === 'recv') ? v : -v;
+    // Does this transaction bring money IN? + : realised cash-in, accrued receivable, and a
+    // loan drawdown (accrued payable in the loan category — cash received against the new
+    // liability, "we got the money"). Every other accrued payable / realised cash-out is −.
+    function txIsInflow(tx){
+      const k = txKind(tx);
+      if (k === 'pay') return isLoanDrawdown(tx);
+      return k === 'in' || k === 'recv';
+    }
+    // Signed amount converted into `target` (UAH/USD/EUR). Uses the backend's per-tx
+    // total_uah/usd/eur (historical rates) like the dashboard, falling back to a flat rate.
+    function txSignedIn(tx, target){
+      const field = target === 'USD' ? 'total_usd' : (target === 'EUR' ? 'total_eur' : 'total_uah');
+      let v = tx[field];
+      if (v == null) v = convertAmount(tx.total, tx.currency || target, target);
+      const mag = Math.abs(Number(v) || 0);
+      return txIsInflow(tx) ? mag : -mag;
     }
     function sumChip(v, cur){
       const sign = v < 0 ? '−' : '+';
       return `<span class="sum-amt ${v < 0 ? 'neg' : 'pos'}">${sign}${esc(curSym(cur))}${esc(fmtNum(Math.abs(v)))}</span>`;
     }
-    // Per-currency signed totals for the filtered rows → desktop tfoot + mobile card.
+    // Combined total of the filtered rows — all transactions of all currencies converted and
+    // summed (like the dashboard), shown in each display currency → desktop tfoot + mobile card.
+    const SUM_CURRENCIES = ['UAH', 'USD', 'EUR'];
     function renderTxSum(rows){
       const foot = document.getElementById('rowsFoot'), sumEl = document.getElementById('txSum');
-      const byCur = {};
-      rows.forEach(tx => { const c = tx.currency || '—'; byCur[c] = (byCur[c] || 0) + txSignedAmount(tx); });
-      const curs = Object.keys(byCur).sort();
-      const chips = curs.length ? curs.map(c => sumChip(byCur[c], c)).join('') : `<span class="sum-amt muted">—</span>`;
+      const totals = SUM_CURRENCIES.map(cur => rows.reduce((s, tx) => s + txSignedIn(tx, cur), 0));
+      const chips = rows.length
+        ? SUM_CURRENCIES.map((cur, i) => sumChip(totals[i], cur)).join('')
+        : `<span class="sum-amt muted">—</span>`;
       const label = `${esc(t('tbl.total'))} · ${rows.length}`;
       const inner = `<span class="sum-label">${label}</span><span class="sum-vals">${chips}</span>`;
       if (foot) foot.innerHTML = `<tr class="sum-row"><td colspan="8"><div class="sum-inner">${inner}</div></td></tr>`;
@@ -1249,7 +1283,8 @@
       syncTableFilters();
       const rows = filterTX();
       // Reflect active-filter state on the clear button + the mobile toggle's count badge.
-      const activeCount = ['type','cat','cp','cur','from','to'].filter(k => tableFilter[k]).length;
+      const isActiveFilter = (v) => Array.isArray(v) ? v.length > 0 : !!v;
+      const activeCount = ['type','cat','cp','cur','from','to'].filter(k => isActiveFilter(tableFilter[k])).length;
       document.getElementById('clearFiltersBtn').hidden = !activeCount;
       const fc = document.getElementById('filtersCount');
       fc.textContent = activeCount; fc.hidden = !activeCount;
@@ -1315,10 +1350,12 @@
     }
 
     // Filter controls → update state + re-render. Selects (custom widget dispatches 'change').
-    ['fType','fCat','fCp','fCur'].forEach((id, i) => {
+    [['fType','type'], ['fCat','cat'], ['fCp','cp'], ['fCur','cur']].forEach(([id, key]) => {
       const el = document.getElementById(id); if (!el) return;
-      const key = ['type','cat','cp','cur'][i];
-      el.addEventListener('change', () => { tableFilter[key] = el.value; renderTable(); });
+      el.addEventListener('change', () => {
+        tableFilter[key] = el.multiple ? selectedValues(el) : el.value;
+        renderTable();
+      });
     });
     (function(){
       const fFrom = document.getElementById('fFrom'), fTo = document.getElementById('fTo');
@@ -1337,7 +1374,7 @@
     (function(){
       const btn = document.getElementById('clearFiltersBtn'); if (!btn) return;
       btn.addEventListener('click', () => {
-        tableFilter.type = ''; tableFilter.cat = ''; tableFilter.cp = ''; tableFilter.cur = '';
+        tableFilter.type = ''; tableFilter.cat = []; tableFilter.cp = []; tableFilter.cur = '';
         tableFilter.from = ''; tableFilter.to = '';
         renderTable();
       });
@@ -1415,7 +1452,21 @@
     /* ---------------- New transaction form ---------------- */
     const dateInput = document.getElementById('date');
     const dateWrap  = document.getElementById('dateWrap');
-    const syncDate = () => dateWrap.classList.toggle('has-value', !!dateInput.value);
+    // Toggle has-value AND fill the mobile overlay with the locale-formatted date (so the
+    // native picker reads with the Ukrainian "р." suffix on UA). fmtDate is locale-aware,
+    // so this re-runs on language switch via syncAllDateFields().
+    function syncDateField(input){
+      const field = input.closest('.date-field');
+      if (!field) return;
+      const has = !!input.value;
+      field.classList.toggle('has-value', has);
+      const lbl = field.querySelector('.date-value');
+      if (lbl) lbl.textContent = has ? fmtDate(input.value) : '';
+    }
+    function syncAllDateFields(){
+      document.querySelectorAll('input[type="date"]').forEach(syncDateField);
+    }
+    const syncDate = () => syncDateField(dateInput);
     dateInput.addEventListener('input', syncDate);
     dateInput.addEventListener('change', syncDate);
 
@@ -1545,9 +1596,11 @@
           await Lycee.updateTransaction(Object.assign({ id: editingId }, payload));
           haptic('success');
           cancelEdit();             // exit edit mode + clear the form
-          await reconcileTable();   // refresh cache + badge
-          showToast(t('toast.updated'));
+          // Switch synchronously so the blank "Create" form never flashes between the form
+          // reset and the refresh. showView('table') refreshes the list itself, so we don't
+          // await reconcileTable() here (the extra await is what caused the visible delay).
           showView('table');        // back to the list to see the change
+          showToast(t('toast.updated'));
         } else {
           await Lycee.createTransaction(payload);
           haptic('success');
@@ -1752,9 +1805,8 @@
       fromEl.min = minD; fromEl.max = maxD; toEl.min = minD; toEl.max = maxD;
       fromEl.value = dashState.from || '';
       toEl.value   = dashState.to   || '';
-      // Toggle the localized placeholder overlay (hidden once a date is chosen).
-      fromEl.closest('.date-field').classList.toggle('has-value', !!fromEl.value);
-      toEl.closest('.date-field').classList.toggle('has-value', !!toEl.value);
+      // Toggle the localized placeholder overlay + fill the mobile value overlay.
+      syncDateField(fromEl); syncDateField(toEl);
       if (window.LyceeUI) LyceeUI.refreshAll();  // sync custom currency/date widgets
     }
 

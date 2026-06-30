@@ -33,9 +33,12 @@
   // Only one widget is open at a time.
   var openCtrl = null;
 
-  document.addEventListener('mousedown', function (e) {
+  function closeIfOutside(e) {
     if (openCtrl && !openCtrl.contains(e.target)) openCtrl.close();
-  }, true);
+  }
+  // touchstart too, since multi-selects are enhanced on mobile (where there's no mousedown).
+  document.addEventListener('mousedown', closeIfOutside, true);
+  document.addEventListener('touchstart', closeIfOutside, true);
   document.addEventListener('keydown', function (e) {
     if (openCtrl && e.key === 'Escape') { var c = openCtrl; c.close(); c.focusTrigger(); }
   });
@@ -300,10 +303,118 @@
     refresh();
   }
 
+  /* ----------------------- custom multi-select <select multiple> -----------------------
+     Used by the Category / Counterparty table filters. A checklist popup that toggles
+     options without closing; an empty selection means "All". Drives the SAME underlying
+     <select multiple> (keeps option.selected in sync, dispatches 'change'), so the app
+     reads it like any select. Enhanced on every device — native multi-select is clumsy
+     on both desktop and mobile. Rows are keyed by VALUE, so the app rebuilding the
+     <select>'s options (on each render) never invalidates the open popup. */
+  function enhanceMultiSelect(sel) {
+    if (sel._ui) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'ui-select ui-multi';
+    sel.parentNode.insertBefore(wrap, sel);
+    wrap.appendChild(sel);
+    sel.style.display = 'none';
+    sel.setAttribute('tabindex', '-1');
+
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'ui-trigger';
+    var label = document.createElement('span');
+    label.className = 'ui-trigger-label';
+    trigger.appendChild(label);
+    trigger.insertAdjacentHTML('beforeend', CARET);
+    wrap.appendChild(trigger);
+
+    var pop = null;
+
+    function uk() { return lang() === 'uk'; }
+    function allLabel() { return uk() ? 'Усі' : 'All'; }
+    function selectedOpts() { return Array.from(sel.selectedOptions); }
+    function realOpts() { return Array.from(sel.options).filter(function (o) { return !(o.value === '' && o.disabled); }); }
+
+    function refreshLabel() {
+      var s = selectedOpts();
+      if (!s.length) { label.textContent = allLabel(); trigger.classList.add('placeholder'); }
+      else if (s.length === 1) { label.textContent = s[0].textContent; trigger.classList.remove('placeholder'); }
+      else { label.textContent = s.length + ' ' + (uk() ? 'вибрано' : 'selected'); trigger.classList.remove('placeholder'); }
+    }
+    function syncRows() {
+      if (!pop) return;
+      var on = {};
+      selectedOpts().forEach(function (o) { on[o.value] = 1; });
+      pop.querySelectorAll('.ui-opt[data-val]').forEach(function (r) { r.classList.toggle('selected', !!on[r.dataset.val]); });
+      var allRow = pop.querySelector('.ui-opt-all');
+      if (allRow) allRow.classList.toggle('selected', !selectedOpts().length);
+    }
+    function refresh() { refreshLabel(); syncRows(); }
+    function emit() { sel.dispatchEvent(new Event('change', { bubbles: true })); }
+    function toggleVal(val) {
+      var o = Array.from(sel.options).filter(function (x) { return x.value === val; })[0];
+      if (!o) return;
+      o.selected = !o.selected;
+      refreshLabel(); syncRows(); emit();
+    }
+    function clearAll() {
+      Array.from(sel.options).forEach(function (o) { o.selected = false; });
+      refreshLabel(); syncRows(); emit();
+    }
+    function buildPop() {
+      pop = document.createElement('div');
+      pop.className = 'ui-pop ui-pop-list';
+      var all = document.createElement('div');
+      all.className = 'ui-opt ui-opt-all' + (selectedOpts().length ? '' : ' selected');
+      all.innerHTML = '<span class="ui-opt-txt"></span>' + CHECK;
+      all.querySelector('.ui-opt-txt').textContent = allLabel();
+      all.addEventListener('click', function () { clearAll(); });
+      pop.appendChild(all);
+      realOpts().forEach(function (o) {
+        var row = document.createElement('div');
+        row.className = 'ui-opt' + (o.selected ? ' selected' : '');
+        row.dataset.val = o.value;
+        row.innerHTML = '<span class="ui-opt-txt"></span>' + CHECK;
+        row.querySelector('.ui-opt-txt').textContent = o.textContent;
+        row.addEventListener('click', function () { toggleVal(row.dataset.val); });
+        pop.appendChild(row);
+      });
+      document.body.appendChild(pop);
+    }
+    function open() {
+      if (!realOpts().length) return;
+      if (openCtrl && openCtrl !== ctrl) openCtrl.close();
+      buildPop();
+      openCtrl = ctrl;
+      wrap.classList.add('open');
+      positionPop(trigger, pop, true);
+      requestAnimationFrame(function () { if (pop) pop.classList.add('show'); });
+    }
+    function close() {
+      wrap.classList.remove('open');
+      if (pop) { var p = pop; pop = null; p.classList.remove('show'); setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, 160); }
+      if (openCtrl === ctrl) openCtrl = null;
+    }
+    function reposition() { if (pop) positionPop(trigger, pop, true); }
+
+    trigger.addEventListener('click', function () { if (pop) close(); else open(); });
+
+    var ctrl = {
+      refresh: refresh, close: close, reposition: reposition,
+      focusTrigger: function () { trigger.focus(); },
+      contains: function (n) { return wrap.contains(n) || (pop && pop.contains(n)); }
+    };
+    sel._ui = ctrl;
+    refreshLabel();
+  }
+
   window.LyceeUI = {
     enhanceAll: function () {
+      // Multi-selects get a custom checklist on EVERY device (native <select multiple> is
+      // clumsy on desktop and mobile alike); single selects + dates stay native on touch.
+      document.querySelectorAll('select[multiple]').forEach(enhanceMultiSelect);
       if (isTouch()) return;
-      document.querySelectorAll('select').forEach(enhanceSelect);
+      document.querySelectorAll('select:not([multiple])').forEach(enhanceSelect);
       document.querySelectorAll('input[type="date"]').forEach(enhanceDate);
     },
     refreshAll: function () {
