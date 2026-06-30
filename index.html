@@ -1074,18 +1074,19 @@
 
     function fillSelect(sel, items){
       const ph = `<option value="" disabled selected>${esc(t('ph.select'))}</option>`;
-      sel.innerHTML = ph + items.map(o => `<option value="${esc(o.id)}">${esc(Lycee.pickName(o, lang))}</option>`).join('');
+      // Alphabetical by name in the current language (currency selects are static and excluded).
+      const sorted = items.slice().sort(byLocaleName);
+      sel.innerHTML = ph + sorted.map(o => `<option value="${esc(o.id)}">${esc(Lycee.pickName(o, lang))}</option>`).join('');
     }
     // Comparator: order two reference objects by their name in the CURRENT language
-    // (locale-aware, so Cyrillic/Latin sort correctly). Used for the counterparty dropdown
-    // and the counterparty filter; re-applies on language switch.
+    // (locale-aware, so Cyrillic/Latin sort correctly). Used by every name dropdown
+    // (type / category / counterparty + their filters); re-applies on language switch.
     function byLocaleName(a, b){
       return Lycee.pickName(a, lang).localeCompare(Lycee.pickName(b, lang), locale(), { sensitivity:'base' });
     }
-    function cpsSorted(){ return CPS.slice().sort(byLocaleName); }
     function refillSelects(){
       if (!typeSel) return;
-      fillSelect(typeSel, TYPES); fillSelect(catSel, CATS); fillSelect(cpSel, cpsSorted());
+      fillSelect(typeSel, TYPES); fillSelect(catSel, CATS); fillSelect(cpSel, CPS);
       if (window.LyceeUI) LyceeUI.refreshAll();  // reflect new options in custom selects
     }
     async function loadOptions(){
@@ -1174,8 +1175,8 @@
     function syncTableFilters(){
       const fType = document.getElementById('fType'), fCat = document.getElementById('fCat'),
             fCp = document.getElementById('fCp'), fCur = document.getElementById('fCur');
-      fillFilterSelect(fType, distinctRef('type').map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.type);
-      fillFilterSelect(fCat,  distinctRef('category').map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.cat);
+      fillFilterSelect(fType, distinctRef('type').sort(byLocaleName).map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.type);
+      fillFilterSelect(fCat,  distinctRef('category').sort(byLocaleName).map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.cat);
       // Counterparties sorted by their name in the current language (matches the add form).
       fillFilterSelect(fCp,   distinctRef('counterparty').sort(byLocaleName).map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.cp);
       fillFilterSelect(fCur,  distinctCurrencies().map(c => ({ value:c, label:c })), tableFilter.cur);
@@ -1200,9 +1201,13 @@
         return true;
       });
     }
-    // Signed amount for the sum row: cash-in / receivable = +, cash-out / payable = −.
+    // Signed amount for the sum row. Money received counts as +: realised cash-in, accrued
+    // receivable, and a loan drawdown (accrued payable in the loan category — cash received
+    // against the new liability, "we got the money"). Every other accrued payable and every
+    // realised cash-out is −.
     function txSignedAmount(tx){
       const k = txKind(tx); const v = Number(tx.total) || 0;
+      if (k === 'pay') return isLoanDrawdown(tx) ? v : -v;
       return (k === 'in' || k === 'recv') ? v : -v;
     }
     function sumChip(v, cur){
@@ -1631,7 +1636,9 @@
     // Accrued (нараховано / accrued) entries moved no cash yet → ''.
     function txCash(tx){
       const s = typeStr(tx);
-      if (/нарахован|accru/.test(s)) return '';
+      // Accrued entries move no cash yet → '' — EXCEPT a loan drawdown, where the cash is
+      // received now (it surfaces in the cash-flow statement under Financing).
+      if (/нарахован|accru/.test(s)) return isLoanDrawdown(tx) ? 'in' : '';
       if (/дохід|дохо|income|revenue|продаж|продано|sold|надходж|отримано|отримання|received|receiv|дебітор|інвестиц|investment/.test(s)) return 'in';
       if (/витрат|expense|cost|сплачен|виплачен|оплачен|paid|дивіденд|dividend|погашен/.test(s)) return 'out';
       return 'out';
@@ -1656,6 +1663,14 @@
     // Loan/credit principal (but NOT the interest line "% по Кредиту") — a financing
     // movement, so it's kept out of the P&L just like investments are.
     function catIsLoanPrincipal(tx){ const s = catStr(tx); return /кредит|loan|credit/.test(s) && !/%|відсот|interest/.test(s); }
+    // A loan drawn down is booked as "Кредиторка нарахована" (payable accrued) in the loan
+    // category. Unlike other accrued payables (goods/services taken on credit — a cost with
+    // no cash), the cash IS received now, so this single case ranks as money-in: a financing
+    // inflow in the cash-flow statement and a + in the transactions total.
+    function isLoanDrawdown(tx){
+      const s = typeStr(tx);
+      return /нарахован|accru/.test(s) && /кредитор|payable/.test(s) && catIsLoanPrincipal(tx);
+    }
     // Cash-flow activity bucket for a transaction, by its category:
     //   inv — investing  (investments, fixed assets)
     //   fin — financing  (loan principal, dividends)
