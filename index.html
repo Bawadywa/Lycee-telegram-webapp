@@ -287,6 +287,23 @@
     .empty h3{ font-size:1.125rem; font-weight:800; margin-top:0.75rem; }
     .empty p{ color:var(--hint); font-size:0.875rem; margin:0.5rem 0 0; }
     .footer-actions{ margin-top:1rem; display:flex; flex-direction:column; gap:0.625rem; }
+
+    /* ---------- Transactions filters + sum row ---------- */
+    .tbl-filters{ margin-bottom:0.875rem; }
+    tfoot .sum-row td{ border-top:0.125rem solid var(--border); border-bottom:none; padding-top:0.875rem; }
+    .sum-inner{ display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; }
+    .sum-label{ font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--hint); }
+    .sum-vals{ display:flex; gap:0.875rem; flex-wrap:wrap; justify-content:flex-end; }
+    .sum-amt{ font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .sum-amt.pos{ color:#4ade80; } .sum-amt.neg{ color:#f87171; }
+    .tx-noresults{ padding:1.75rem 0.5rem; text-align:center; color:var(--hint); font-size:0.875rem; }
+    /* Mobile sum card (the desktop tfoot row is hidden with the table). */
+    .tx-sum{ display:none; }
+    @media (max-width:680px){
+      .tx-sum{ display:flex; align-items:center; justify-content:space-between; gap:0.625rem; flex-wrap:wrap;
+        background:var(--card_bg); border:0.0625rem solid var(--border); border-radius:0.875rem;
+        padding:0.75rem 0.875rem; margin-bottom:0.75rem; }
+    }
     .btn-ghost-clear{
       width:100%; margin:0; padding:0.8125rem; background:transparent;
       border:0.0625rem solid var(--border); color:var(--text);
@@ -373,6 +390,10 @@
     table.pivot .r-section td, table.pivot .r-section .rowlabel{ font-weight:800; color:var(--text); }
     table.pivot .r-total td, table.pivot .r-total .rowlabel{ font-weight:800; border-top:0.125rem solid var(--border); }
     table.pivot .r-cat .rowlabel{ font-weight:500; color:var(--hint); padding-left:1.625rem; }
+    /* Net income / net cash flow (accent), dividends line, and the margin % row. */
+    table.pivot .r-net td, table.pivot .r-net .rowlabel{ color:#2dd4bf; }
+    table.pivot .r-div .rowlabel{ font-weight:600; }
+    table.pivot .r-margin td, table.pivot .r-margin .rowlabel{ font-weight:700; border-top:0.0625rem dashed var(--border); }
     table.pivot .num{ font-variant-numeric:tabular-nums; }
     table.pivot .pos{ color:#4ade80; }
     table.pivot .neg{ color:#f87171; }
@@ -584,6 +605,37 @@
           </div>
 
           <div id="content" style="display:none">
+            <!-- Filters -->
+            <div class="dash-filters tbl-filters">
+              <div class="dash-ctl">
+                <label data-i18n="tbl.f.type">Type</label>
+                <select id="fType"></select>
+              </div>
+              <div class="dash-ctl">
+                <label data-i18n="tbl.f.cat">Category</label>
+                <select id="fCat"></select>
+              </div>
+              <div class="dash-ctl">
+                <label data-i18n="tbl.f.cur">Currency</label>
+                <select id="fCur"></select>
+              </div>
+              <div class="dash-ctl">
+                <label data-i18n="dash.f.from">From</label>
+                <div class="date-field" id="fFromWrap">
+                  <input id="fFrom" type="date" min="2025-01-01">
+                  <span class="date-placeholder" data-i18n="dash.ph.from">📅 From date</span>
+                </div>
+              </div>
+              <div class="dash-ctl">
+                <label data-i18n="dash.f.to">To</label>
+                <div class="date-field" id="fToWrap">
+                  <input id="fTo" type="date" min="2025-01-01">
+                  <span class="date-placeholder" data-i18n="dash.ph.to">📅 To date</span>
+                </div>
+              </div>
+            </div>
+            <!-- Sum summary (mobile) -->
+            <div id="txSum" class="tx-sum"></div>
             <!-- Card list (mobile) -->
             <div id="txCards" class="tx-cards"></div>
             <!-- Table (desktop) -->
@@ -602,6 +654,7 @@
                   </tr>
                 </thead>
                 <tbody id="rows"></tbody>
+                <tfoot id="rowsFoot"></tfoot>
               </table>
             </div>
 
@@ -676,6 +729,13 @@
             <h3 data-i18n="dash.pnl.title">P&amp;L statement</h3>
             <p class="sub" data-i18n="dash.pnl.subtitle">By month</p>
             <div class="data-scroll"><table class="pivot" id="pnlTable"></table></div>
+          </div>
+
+          <!-- Cash flow statement — monthly pivot, direct method -->
+          <div class="data-card">
+            <h3 data-i18n="dash.cf.title">Cash flow statement</h3>
+            <p class="sub" data-i18n="dash.cf.subtitle">By month · direct method</p>
+            <div class="data-scroll"><table class="pivot" id="cfTable"></table></div>
           </div>
 
           <!-- Receivables / payables by counterparty (point 8) -->
@@ -755,7 +815,13 @@
         'dash.pnl.rev':'Revenue', 'dash.pnl.cost':'Costs', 'dash.pnl.net':'Net profit', 'dash.pnl.margin':'Margin',
         'dash.pnl.title':'P&L statement', 'dash.pnl.subtitle':'By month',
         'dash.pnl.profit':'Profit', 'dash.pnl.income':'Income', 'dash.pnl.expenses':'Expenses', 'dash.pnl.total':'Total',
+        'dash.pnl.netincome':'Net income', 'dash.pnl.dividends':'Dividends', 'dash.pnl.marginpct':'Margin %',
         'dash.pnl.none':'No income or expense data in range.',
+        'dash.cf.title':'Cash flow statement', 'dash.cf.subtitle':'By month · direct method',
+        'dash.cf.op':'Operating activities', 'dash.cf.inv':'Investing activities', 'dash.cf.fin':'Financing activities',
+        'dash.cf.net':'Net cash flow', 'dash.cf.none':'No cash movements in range.',
+        'tbl.f.type':'Type', 'tbl.f.cat':'Category', 'tbl.f.cur':'Currency', 'tbl.f.all':'All',
+        'tbl.total':'Total', 'tbl.noresults':'No transactions match these filters.',
         'dash.cp.title':'Receivables / payables', 'dash.cp.subtitle':'By counterparty',
         'dash.cp.counterparty':'Counterparty', 'dash.cp.payable':'Payables', 'dash.cp.receivable':'Receivables',
         'dash.cp.none':'No open balances.', 'dash.nocp':'No counterparty',
@@ -804,7 +870,13 @@
         'dash.pnl.rev':'Доходи', 'dash.pnl.cost':'Витрати', 'dash.pnl.net':'Прибуток', 'dash.pnl.margin':'Маржа',
         'dash.pnl.title':'Звіт про прибутки та збитки', 'dash.pnl.subtitle':'По місяцях',
         'dash.pnl.profit':'Прибуток', 'dash.pnl.income':'Доходи', 'dash.pnl.expenses':'Витрати', 'dash.pnl.total':'Усього',
+        'dash.pnl.netincome':'Чистий прибуток', 'dash.pnl.dividends':'Дивіденди', 'dash.pnl.marginpct':'Маржа %',
         'dash.pnl.none':'Немає доходів чи витрат за період.',
+        'dash.cf.title':'Звіт про рух грошових коштів', 'dash.cf.subtitle':'По місяцях · прямий метод',
+        'dash.cf.op':'Операційна діяльність', 'dash.cf.inv':'Інвестиційна діяльність', 'dash.cf.fin':'Фінансова діяльність',
+        'dash.cf.net':'Чистий грошовий потік', 'dash.cf.none':'Немає руху коштів за період.',
+        'tbl.f.type':'Тип', 'tbl.f.cat':'Категорія', 'tbl.f.cur':'Валюта', 'tbl.f.all':'Усі',
+        'tbl.total':'Усього', 'tbl.noresults':'Немає транзакцій за цими фільтрами.',
         'dash.cp.title':'Дебіторка / Кредиторка', 'dash.cp.subtitle':'За контрагентами',
         'dash.cp.counterparty':'Контрагент', 'dash.cp.payable':'Кредиторка', 'dash.cp.receivable':'Дебіторка',
         'dash.cp.none':'Немає відкритих залишків.', 'dash.nocp':'Без контрагента',
@@ -998,6 +1070,76 @@
     function txSign(kind){ return kind === 'in' ? '+' : (kind === 'out' ? '−' : ''); }
     function curSym(c){ return ({ USD:'$', EUR:'€', UAH:'₴', GBP:'£', PLN:'zł' })[c] || (c ? c + ' ' : ''); }
 
+    /* ---------------- Transactions filters + sum row ---------------- */
+    // Filter state for the Transactions table (empty string = no filter on that field).
+    const tableFilter = { type:'', cat:'', cur:'', from:'', to:'' };
+
+    // Distinct {id,name_en,name_uk} reference objects present in TX for a given key.
+    function distinctRef(key){
+      const m = new Map();
+      TX.forEach(tx => { const o = tx[key]; if (o && o.id != null) m.set(String(o.id), o); });
+      return [...m.values()];
+    }
+    // Distinct currency codes present in TX.
+    function distinctCurrencies(){
+      const seen = []; TX.forEach(tx => { const c = tx.currency; if (c && seen.indexOf(c) === -1) seen.push(c); });
+      return seen.sort();
+    }
+    // Populate one filter <select> with an "All" option + the given {value,label} list,
+    // preserving the current selection when it's still available.
+    function fillFilterSelect(sel, items, current){
+      sel.innerHTML = `<option value="">${esc(t('tbl.f.all'))}</option>` +
+        items.map(it => `<option value="${esc(it.value)}"${String(it.value) === String(current) ? ' selected' : ''}>${esc(it.label)}</option>`).join('');
+      if (!items.some(it => String(it.value) === String(current))) sel.value = '';
+    }
+    // Repopulate every filter control from the current TX set + reflect the filter state.
+    function syncTableFilters(){
+      const fType = document.getElementById('fType'), fCat = document.getElementById('fCat'), fCur = document.getElementById('fCur');
+      fillFilterSelect(fType, distinctRef('type').map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.type);
+      fillFilterSelect(fCat,  distinctRef('category').map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.cat);
+      fillFilterSelect(fCur,  distinctCurrencies().map(c => ({ value:c, label:c })), tableFilter.cur);
+      // A previously-selected option may have vanished (e.g. its last tx was deleted).
+      tableFilter.type = fType.value; tableFilter.cat = fCat.value; tableFilter.cur = fCur.value;
+      const fFrom = document.getElementById('fFrom'), fTo = document.getElementById('fTo');
+      fFrom.value = tableFilter.from; fTo.value = tableFilter.to;
+      fFrom.closest('.date-field').classList.toggle('has-value', !!fFrom.value);
+      fTo.closest('.date-field').classList.toggle('has-value', !!fTo.value);
+      if (window.LyceeUI) LyceeUI.refreshAll();
+    }
+    // The TX rows passing the active filters.
+    function filterTX(){
+      return TX.filter(tx => {
+        if (tableFilter.type && String(tx.type && tx.type.id) !== tableFilter.type) return false;
+        if (tableFilter.cat && String(tx.category && tx.category.id) !== tableFilter.cat) return false;
+        if (tableFilter.cur && tx.currency !== tableFilter.cur) return false;
+        const iso = String(tx.occured_at || tx.date || '').slice(0,10);
+        if (tableFilter.from && !(iso && iso >= tableFilter.from)) return false;
+        if (tableFilter.to && !(iso && iso <= tableFilter.to)) return false;
+        return true;
+      });
+    }
+    // Signed amount for the sum row: cash-in / receivable = +, cash-out / payable = −.
+    function txSignedAmount(tx){
+      const k = txKind(tx); const v = Number(tx.total) || 0;
+      return (k === 'in' || k === 'recv') ? v : -v;
+    }
+    function sumChip(v, cur){
+      const sign = v < 0 ? '−' : '+';
+      return `<span class="sum-amt ${v < 0 ? 'neg' : 'pos'}">${sign}${esc(curSym(cur))}${esc(fmtNum(Math.abs(v)))}</span>`;
+    }
+    // Per-currency signed totals for the filtered rows → desktop tfoot + mobile card.
+    function renderTxSum(rows){
+      const foot = document.getElementById('rowsFoot'), sumEl = document.getElementById('txSum');
+      const byCur = {};
+      rows.forEach(tx => { const c = tx.currency || '—'; byCur[c] = (byCur[c] || 0) + txSignedAmount(tx); });
+      const curs = Object.keys(byCur).sort();
+      const chips = curs.length ? curs.map(c => sumChip(byCur[c], c)).join('') : `<span class="sum-amt muted">—</span>`;
+      const label = `${esc(t('tbl.total'))} · ${rows.length}`;
+      const inner = `<span class="sum-label">${label}</span><span class="sum-vals">${chips}</span>`;
+      if (foot) foot.innerHTML = `<tr class="sum-row"><td colspan="8"><div class="sum-inner">${inner}</div></td></tr>`;
+      if (sumEl) sumEl.innerHTML = inner;
+    }
+
     function renderTable(){
       document.getElementById('countBadge').textContent = TX.length;
       try { dashOnData(); } catch(e){}
@@ -1015,7 +1157,20 @@
       }
       content.style.display = 'block';
       empty.style.display = 'none';
-      document.getElementById('rows').innerHTML = TX.map(tx => {
+
+      syncTableFilters();
+      const rows = filterTX();
+
+      // Filters matched nothing (but transactions do exist) → inline notice + empty sum.
+      if (!rows.length){
+        const note = `<div class="tx-noresults">${esc(t('tbl.noresults'))}</div>`;
+        document.getElementById('rows').innerHTML = `<tr><td colspan="8">${note}</td></tr>`;
+        document.getElementById('txCards').innerHTML = note;
+        renderTxSum(rows);
+        return;
+      }
+
+      document.getElementById('rows').innerHTML = rows.map(tx => {
         const dir = txKind(tx);   // in | out | recv | pay — same classifier the cards use
         const sign = txSign(dir);
         return `
@@ -1035,7 +1190,7 @@
       }).join('');
 
       // Card view (mobile) — same data, CSS toggles between this and the table.
-      document.getElementById('txCards').innerHTML = TX.map(tx => {
+      document.getElementById('txCards').innerHTML = rows.map(tx => {
         const dir = txKind(tx);
         const sign = txSign(dir);
         const cp = escapeHtml(Lycee.pickName(tx.counterparty, lang) || '—');
@@ -1062,7 +1217,29 @@
           ${comment}
         </div>`;
       }).join('');
+
+      renderTxSum(rows);
     }
+
+    // Filter controls → update state + re-render. Selects (custom widget dispatches 'change').
+    ['fType','fCat','fCur'].forEach((id, i) => {
+      const el = document.getElementById(id); if (!el) return;
+      const key = ['type','cat','cur'][i];
+      el.addEventListener('change', () => { tableFilter[key] = el.value; renderTable(); });
+    });
+    (function(){
+      const fFrom = document.getElementById('fFrom'), fTo = document.getElementById('fTo');
+      if (fFrom) fFrom.addEventListener('change', () => {
+        tableFilter.from = fFrom.value;
+        if (tableFilter.from && tableFilter.to && tableFilter.from > tableFilter.to) tableFilter.to = tableFilter.from;
+        renderTable();
+      });
+      if (fTo) fTo.addEventListener('change', () => {
+        tableFilter.to = fTo.value;
+        if (tableFilter.from && tableFilter.to && tableFilter.to < tableFilter.from) tableFilter.from = tableFilter.to;
+        renderTable();
+      });
+    })();
 
     // Silent reconcile — only re-render when the data actually differs.
     async function reconcileTable(){
@@ -1098,6 +1275,7 @@
         } else {
           contentEl.querySelectorAll('[data-id="' + id + '"]').forEach(el => el.remove());
           document.getElementById('countBadge').textContent = TX.length;
+          renderTxSum(filterTX());       // keep the sum row in step with the removal
           try { dashOnData(); } catch(e){} // repaint charts only if the dashboard is open
         }
       } catch(err){ console.error(err); btn.disabled = false; showToast(t('toast.error')); }
@@ -1323,6 +1501,33 @@
       if (accr && /кредитор|payable/.test(s)) return 'cost';   // Кредиторка нарахована
       return '';
     }
+    // Category keyword classifiers — refine the P&L (investments aren't income,
+    // dividends aren't an expense) and drive the cash-flow statement's buckets.
+    function catIsInvestment(tx){ return /інвестиц|investment/.test(catStr(tx)); }
+    function catIsDividend(tx){ return /дивіденд|dividend/.test(catStr(tx)); }
+    // Loan/credit principal (but NOT the interest line "% по Кредиту") — a financing
+    // movement, so it's kept out of the P&L just like investments are.
+    function catIsLoanPrincipal(tx){ const s = catStr(tx); return /кредит|loan|credit/.test(s) && !/%|відсот|interest/.test(s); }
+    // Cash-flow activity bucket for a transaction, by its category:
+    //   inv — investing  (investments, fixed assets)
+    //   fin — financing  (loan principal, dividends)
+    //   op  — operating  (everything else: sales, goods, salary … incl. loan interest)
+    function cfActivity(tx){
+      const s = catStr(tx);
+      if (catIsInvestment(tx) || /основн.{0,3}засоб|fixed\s*asset/.test(s)) return 'inv';
+      if (catIsDividend(tx)) return 'fin';
+      if (/кредит|loan|credit/.test(s) && !/%|відсот|interest/.test(s)) return 'fin';
+      return 'op';
+    }
+    // Canonical row order for P&L / cash-flow category rows (mirrors the spec ordering).
+    // Unknown categories fall to the end and sort by amount there.
+    const CAT_ORDER = [
+      /продаж|sales/, /товар|goods/, /зарплат|salary|payroll/, /логістик|logistic/,
+      /послуг|service/, /підписк|subscription/, /оренд|rent/, /комунал|utilit/,
+      /реклам|advertis|marketing/, /основн.{0,3}засоб|fixed\s*asset/,
+      /(%|відсот|interest)/, /податк|tax/, /кредит|loan|credit/, /дивіденд|dividend/, /інвестиц|investment/
+    ];
+    function catOrder(name){ const s = String(name).toLowerCase(); for (let i=0;i<CAT_ORDER.length;i++) if (CAT_ORDER[i].test(s)) return i; return 99; }
     function txISO(tx){ return String(tx.occured_at || tx.date || '').slice(0,10); }
     function txMonth(tx){ const d = txISO(tx); return d ? d.slice(0,7) : ''; } // YYYY-MM
     function monthLabel(key){
@@ -1403,7 +1608,12 @@
       let recvAccr = 0, recvSettled = 0, payAccr = 0, paySettled = 0, invest = 0, dividend = 0;
       // P&L pivot (point 7): revenue = Дохід + Дебіторка нарахована; costs = Витрати + Кредиторка
       // нарахована. Broken down by category × month for the statement table + waterfall.
-      const pnlInc = {}, pnlExp = {}, pnlIncTot = {}, pnlExpTot = {};
+      // Investments are excluded from income; dividends are pulled out of expenses into
+      // their own line (an appropriation of profit), tracked per month in pnlDivTot.
+      const pnlInc = {}, pnlExp = {}, pnlIncTot = {}, pnlExpTot = {}, pnlDivTot = {};
+      // Cash-flow statement (direct method): realised cash movements, signed (+in / −out),
+      // grouped by category within operating / investing / financing activities.
+      const cfOp = {}, cfInv = {}, cfFin = {}, cfOpTot = {}, cfInvTot = {}, cfFinTot = {};
       // Receivables / payables per counterparty (point 8).
       const cpMap = {};
       const bump = (obj, key, k, v) => { (obj[key] = obj[key] || {})[k] = (obj[key][k] || 0) + v; };
@@ -1411,13 +1621,24 @@
         const k = txMonth(tx); if (!k) return;
         const amt = txAmount(tx);
         const c = catName(tx);
-        // Income / expense charts: operating P&L only.
+        // Income / expense charts: operating P&L only. Investments, dividends and loan
+        // principal are financing/investing movements → kept out of these aggregates
+        // (dividends get their own P&L line below; the rest only show in cash flow).
         const pl = txPL(tx);
-        if (pl === 'income'){ inc[k] += amt; totIn += amt; }
-        else if (pl === 'expense'){ exp[k] += amt; totOut += amt; expCat[c] = (expCat[c]||0) + amt; }
+        const isInv = catIsInvestment(tx), isDiv = catIsDividend(tx), isLoan = catIsLoanPrincipal(tx);
+        const pnlExcl = isInv || isDiv || isLoan;
+        if (pl === 'income' && !pnlExcl){ inc[k] += amt; totIn += amt; }
+        else if (pl === 'expense' && !pnlExcl){ exp[k] += amt; totOut += amt; expCat[c] = (expCat[c]||0) + amt; }
         // Cash-balance chart: every realised cash movement (incl. loans, dividends…).
         const cd = txCash(tx);
         if (cd === 'in') cashNet[k] += amt; else if (cd === 'out') cashNet[k] -= amt;
+        // Cash-flow statement: same realised movements, signed and bucketed by activity.
+        if (cd){
+          const sv = (cd === 'in' ? amt : -amt), act = cfActivity(tx);
+          const dst = act === 'inv' ? cfInv : (act === 'fin' ? cfFin : cfOp);
+          const tot = act === 'inv' ? cfInvTot : (act === 'fin' ? cfFinTot : cfOpTot);
+          bump(dst, c, k, sv); tot[k] = (tot[k] || 0) + sv;
+        }
         // Receivables / payables (by transaction type) + investments / dividends (by category).
         const ts = typeStr(tx), cstr = catStr(tx);
         const accr = /нарахован|accru/.test(ts), settl = /погашен|settl/.test(ts);
@@ -1427,10 +1648,12 @@
         // Investment / dividends are both TYPES and CATEGORIES in the real data — match either.
         if (/інвестиц|investment/.test(ts) || /інвестиц|investment/.test(cstr)) invest += amt;
         if (/дивіденд|dividend/.test(ts)   || /дивіденд|dividend/.test(cstr))   dividend += amt;
-        // P&L pivot (accrual basis — see pnlClass).
+        // P&L pivot (accrual basis — see pnlClass). Investments + loan principal stay out
+        // of revenue and costs; dividends are split off into their own line (pnlDivTot).
         const pc = pnlClass(tx);
-        if (pc === 'rev'){  bump(pnlInc, c, k, amt); pnlIncTot[k] = (pnlIncTot[k]||0) + amt; }
-        if (pc === 'cost'){ bump(pnlExp, c, k, amt); pnlExpTot[k] = (pnlExpTot[k]||0) + amt; }
+        if (pc === 'rev' && !pnlExcl){  bump(pnlInc, c, k, amt); pnlIncTot[k] = (pnlIncTot[k]||0) + amt; }
+        if (pc === 'cost' && !pnlExcl){ bump(pnlExp, c, k, amt); pnlExpTot[k] = (pnlExpTot[k]||0) + amt; }
+        if (pc === 'cost' && isDiv){ pnlDivTot[k] = (pnlDivTot[k]||0) + amt; }
         // Per-counterparty balances.
         if (isRecv || isPay){
           const cp = cpName(tx);
@@ -1452,7 +1675,8 @@
       const pnlCost = months.reduce((s,k) => s + (pnlExpTot[k]||0), 0);
       return { months, labels: months.map(monthLabel), inc: incA, exp: expA, net, cash, totIn, totOut, expCat,
         receivable: recvAccr - recvSettled, payable: payAccr - paySettled, invest, dividend, count: rows.length,
-        pnlInc, pnlExp, pnlIncTot, pnlExpTot, pnlRev, pnlCost, cpRows };
+        pnlInc, pnlExp, pnlIncTot, pnlExpTot, pnlDivTot, pnlRev, pnlCost, cpRows,
+        cfOp, cfInv, cfFin, cfOpTot, cfInvTot, cfFinTot };
     }
 
     function dashTooltip(extra){
@@ -1609,33 +1833,70 @@
 
     // One numeric cell (muted when zero so the matrix reads cleanly).
     function pnlCell(v){ return `<td class="num${Math.round(v) ? '' : ' muted'}">${esc(dashMoney(v, false))}</td>`; }
-    // A section subtotal row followed by its category rows (sorted by total desc).
-    function pnlSection(label, totMap, catMap, months){
+    // A signed numeric cell (green positive / red negative) for cash-flow figures.
+    function flowCell(v){ return `<td class="num${Math.round(v) ? (v < 0 ? ' neg' : ' pos') : ' muted'}">${esc(dashMoney(v, false))}</td>`; }
+    // A section subtotal row followed by its category rows, ordered per the spec
+    // (catOrder), falling back to amount for anything unrecognised. `cell` chooses the
+    // formatting (plain for P&L, signed for cash flow); `metric` ranks the fallback.
+    function pivotSection(label, totMap, catMap, months, cell, metric){
+      cell = cell || pnlCell; metric = metric || (v => v);
       const per = months.map(m => totMap[m] || 0);
       const total = per.reduce((s,v) => s + v, 0);
-      let html = `<tr class="r-section"><td class="rowlabel">${esc(label)}</td>${per.map(pnlCell).join('')}${pnlCell(total)}</tr>`;
+      let html = `<tr class="r-section"><td class="rowlabel">${esc(label)}</td>${per.map(cell).join('')}${cell(total)}</tr>`;
       Object.keys(catMap).map(name => {
         const mp = catMap[name];
-        return { name, mp, tot: months.reduce((s,m) => s + (mp[m] || 0), 0) };
-      }).sort((x,y) => y.tot - x.tot).forEach(c => {
-        html += `<tr class="r-cat"><td class="rowlabel">${esc(c.name)}</td>${months.map(m => pnlCell(c.mp[m] || 0)).join('')}${pnlCell(c.tot)}</tr>`;
+        return { name, mp, tot: months.reduce((s,m) => s + (mp[m] || 0), 0), ord: catOrder(name) };
+      }).sort((x,y) => (x.ord - y.ord) || (metric(y.tot) - metric(x.tot))).forEach(c => {
+        html += `<tr class="r-cat"><td class="rowlabel">${esc(c.name)}</td>${months.map(m => cell(c.mp[m] || 0)).join('')}${cell(c.tot)}</tr>`;
       });
       return html;
     }
-    // P&L statement pivot — rows: Profit (net), Income + categories, Expenses + categories; columns: months + total.
+    // P&L statement pivot — Income + categories, Expenses + categories, then Net income,
+    // Dividends (after net income — an appropriation of profit) and Margin %.
     function renderPnlTable(a){
       const tbl = document.getElementById('pnlTable'); if (!tbl) return;
       const months = a.months, labels = a.labels;
       if (!months.length){ tbl.innerHTML = `<tbody><tr><td class="data-empty">${esc(t('dash.pnl.none'))}</td></tr></tbody>`; return; }
       const head = `<thead><tr><th class="rowlabel">${esc(t('dash.pnl.title'))}</th>${
         labels.map(l => `<th>${esc(l)}</th>`).join('')}<th>${esc(t('dash.pnl.total'))}</th></tr></thead>`;
-      const profit = months.map(m => (a.pnlIncTot[m] || 0) - (a.pnlExpTot[m] || 0));
-      const profitTotal = profit.reduce((s,v) => s + v, 0);
-      const profitCell = v => `<td class="num${v < 0 ? ' neg' : ''}">${esc(dashMoney(v, false))}</td>`;
-      let body = `<tr class="r-total r-profit"><td class="rowlabel">${esc(t('dash.pnl.profit'))}</td>${
-        profit.map(profitCell).join('')}${profitCell(profitTotal)}</tr>`;
-      body += pnlSection(t('dash.pnl.income'),   a.pnlIncTot, a.pnlInc, months);
-      body += pnlSection(t('dash.pnl.expenses'), a.pnlExpTot, a.pnlExp, months);
+      let body = pivotSection(t('dash.pnl.income'),   a.pnlIncTot, a.pnlInc, months);
+      body    += pivotSection(t('dash.pnl.expenses'), a.pnlExpTot, a.pnlExp, months);
+      // Net income = income − expenses.
+      const net = months.map(m => (a.pnlIncTot[m] || 0) - (a.pnlExpTot[m] || 0));
+      const netTotal = net.reduce((s,v) => s + v, 0);
+      body += `<tr class="r-total r-net"><td class="rowlabel">${esc(t('dash.pnl.netincome'))}</td>${net.map(flowCell).join('')}${flowCell(netTotal)}</tr>`;
+      // Dividends — shown after net income, never inside the expense block.
+      const div = months.map(m => a.pnlDivTot[m] || 0);
+      const divTotal = div.reduce((s,v) => s + v, 0);
+      body += `<tr class="r-div"><td class="rowlabel">${esc(t('dash.pnl.dividends'))}</td>${div.map(pnlCell).join('')}${pnlCell(divTotal)}</tr>`;
+      // Margin % = net income / income (per month and overall).
+      const marginCell = (n, r) => {
+        if (!Math.round(r)) return `<td class="num muted">—</td>`;
+        const m = n / r * 100;
+        return `<td class="num${m < 0 ? ' neg' : ' pos'}">${esc(m.toFixed(1))}%</td>`;
+      };
+      body += `<tr class="r-margin"><td class="rowlabel">${esc(t('dash.pnl.marginpct'))}</td>${
+        months.map(m => marginCell((a.pnlIncTot[m] || 0) - (a.pnlExpTot[m] || 0), a.pnlIncTot[m] || 0)).join('')
+        }${marginCell(netTotal, a.pnlRev)}</tr>`;
+      tbl.innerHTML = head + '<tbody>' + body + '</tbody>';
+    }
+    // Cash-flow statement (direct method) — Operating / Investing / Financing activities,
+    // each a category breakdown with its net subtotal, then total Net cash flow.
+    function renderCashflowTable(a){
+      const tbl = document.getElementById('cfTable'); if (!tbl) return;
+      const months = a.months, labels = a.labels;
+      const hasData = Object.keys(a.cfOp).length || Object.keys(a.cfInv).length || Object.keys(a.cfFin).length;
+      if (!months.length || !hasData){ tbl.innerHTML = `<tbody><tr><td class="data-empty">${esc(t('dash.cf.none'))}</td></tr></tbody>`; return; }
+      const head = `<thead><tr><th class="rowlabel">${esc(t('dash.cf.title'))}</th>${
+        labels.map(l => `<th>${esc(l)}</th>`).join('')}<th>${esc(t('dash.pnl.total'))}</th></tr></thead>`;
+      const absMetric = v => Math.abs(v);
+      let body = '';
+      if (Object.keys(a.cfOp).length)  body += pivotSection(t('dash.cf.op'),  a.cfOpTot,  a.cfOp,  months, flowCell, absMetric);
+      if (Object.keys(a.cfInv).length) body += pivotSection(t('dash.cf.inv'), a.cfInvTot, a.cfInv, months, flowCell, absMetric);
+      if (Object.keys(a.cfFin).length) body += pivotSection(t('dash.cf.fin'), a.cfFinTot, a.cfFin, months, flowCell, absMetric);
+      const netM = months.map(m => (a.cfOpTot[m] || 0) + (a.cfInvTot[m] || 0) + (a.cfFinTot[m] || 0));
+      const netT = netM.reduce((s,v) => s + v, 0);
+      body += `<tr class="r-total r-net"><td class="rowlabel">${esc(t('dash.cf.net'))}</td>${netM.map(flowCell).join('')}${flowCell(netT)}</tr>`;
       tbl.innerHTML = head + '<tbody>' + body + '</tbody>';
     }
     // Receivables / payables per counterparty (net open balance), biggest first, with a total row.
@@ -1673,6 +1934,7 @@
       renderDashKpis(a);
       renderPnlSub(a);
       renderPnlTable(a);
+      renderCashflowTable(a);
       renderCpTable(a);
       Chart.defaults.font.family = "Inter, system-ui, sans-serif";
       Chart.defaults.color = '#a1a1aa';
