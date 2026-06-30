@@ -233,6 +233,9 @@
       var startDow = (first.getDay() + 6) % 7; // Monday-first
       var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
       var title = new Intl.DateTimeFormat(locale(), { month: 'long', year: 'numeric' }).format(first);
+      // Capitalize only the FIRST letter (not every word) so the Ukrainian year suffix stays
+      // lowercase "р." — CSS text-transform:capitalize used to turn it into "Р.".
+      title = title.charAt(0).toUpperCase() + title.slice(1);
       var dows = [];
       for (var i = 0; i < 7; i++) dows.push(new Intl.DateTimeFormat(locale(), { weekday: 'short' }).format(new Date(2024, 0, 1 + i))); // 2024-01-01 = Monday
 
