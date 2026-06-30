@@ -31,6 +31,9 @@
     }
 
     *{ box-sizing:border-box; }
+    /* Honour the `hidden` attribute even on elements with an author `display` rule
+       (e.g. the flex pills below would otherwise stay visible while hidden). */
+    [hidden]{ display:none !important; }
     /* Base root font-size: every dimension below is in rem, so this is the single knob the
        large-screen media queries turn to scale the whole UI up (see end of stylesheet). */
     html{ font-size:16px; }
@@ -132,6 +135,9 @@
       font-weight:700; font-size:0.6875rem; text-transform:uppercase; letter-spacing:.14em;
       color:var(--hint);
     }
+    /* Required-field marker — a small red star after the label text. Added via ::after so
+       it survives applyI18n() re-setting the label's textContent on language switch. */
+    label.req::after{ content:" *"; color:#f87171; font-weight:700; }
 
     input,select,textarea{
       width:100%; padding:0.75rem; font-size:1rem; font-family:inherit;
@@ -300,6 +306,28 @@
 
     /* ---------- Transactions filters + sum row ---------- */
     .tbl-filters{ margin-bottom:0.875rem; }
+    /* The "Filters" toggle is desktop-hidden; the filter bar is always open on desktop. */
+    .tbl-filters-toggle{ display:none; }
+    .ftog-count{
+      display:inline-flex; align-items:center; justify-content:center; min-width:1.125rem; height:1.125rem;
+      padding:0 0.3125rem; border-radius:62.4375rem; background:var(--grad); color:#fff;
+      font-size:0.6875rem; font-weight:800; line-height:1;
+    }
+    @media (max-width:680px){
+      .tbl-filters-toggle{
+        width:100%; display:inline-flex; align-items:center; gap:0.5rem;
+        margin-bottom:0.875rem; padding:0.625rem 0.875rem; border-radius:0.875rem;
+        background:var(--field_bg); border:0.0625rem solid var(--field_border); color:var(--text);
+        font-family:inherit; font-weight:700; font-size:0.875rem; cursor:pointer;
+      }
+      .tbl-filters-toggle .ftog-ico{ width:1rem; height:1rem; flex:none; color:var(--hint); }
+      .tbl-filters-toggle .ftog-caret{ width:1rem; height:1rem; flex:none; margin-left:auto; color:var(--hint); transition:transform .2s ease; }
+      .tbl-filters-toggle[aria-expanded="true"] .ftog-caret{ transform:rotate(180deg); }
+      /* Collapsed by default on mobile; revealed when #content has .filters-open. Both
+         classes are named so this outranks the base `.dash-filters{ display:flex }`. */
+      .dash-filters.tbl-filters{ display:none; }
+      #content.filters-open .tbl-filters{ display:flex; }
+    }
     .btn-clear-filters{
       flex:none; display:inline-flex; align-items:center; gap:0.375rem;
       padding:0.4375rem 0.75rem; border-radius:62.4375rem;
@@ -574,7 +602,7 @@
             </div>
           </div>
 
-          <label data-i18n="field.type">Type</label>
+          <label class="req" data-i18n="field.type">Type</label>
           <select id="type"><option value="" disabled selected data-i18n="ph.select">Select…</option></select>
 
           <label data-i18n="field.category">Category</label>
@@ -631,6 +659,13 @@
           </div>
 
           <div id="content" style="display:none">
+            <!-- Filters: collapsed behind this toggle on mobile, always shown on desktop. -->
+            <button class="tbl-filters-toggle" id="filtersToggle" type="button" aria-expanded="false">
+              <svg class="ftog-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              <span data-i18n="tbl.f.toggle">Filters</span>
+              <span class="ftog-count" id="filtersCount" hidden>0</span>
+              <svg class="ftog-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
             <!-- Filters -->
             <div class="dash-filters tbl-filters">
               <div class="dash-ctl">
@@ -640,6 +675,10 @@
               <div class="dash-ctl">
                 <label data-i18n="tbl.f.cat">Category</label>
                 <select id="fCat"></select>
+              </div>
+              <div class="dash-ctl">
+                <label data-i18n="field.counterparty">Counterparty</label>
+                <select id="fCp"></select>
               </div>
               <div class="dash-ctl">
                 <label data-i18n="tbl.f.cur">Currency</label>
@@ -848,7 +887,7 @@
         'dash.cf.op':'Operating activities', 'dash.cf.inv':'Investing activities', 'dash.cf.fin':'Financing activities',
         'dash.cf.net':'Net cash flow', 'dash.cf.none':'No cash movements in range.',
         'tbl.f.type':'Type', 'tbl.f.cat':'Category', 'tbl.f.cur':'Currency', 'tbl.f.all':'All',
-        'tbl.f.clear':'Clear filters',
+        'tbl.f.clear':'Clear filters', 'tbl.f.toggle':'Filters',
         'tbl.total':'Total', 'tbl.noresults':'No transactions match these filters.',
         'dash.cp.title':'Receivables / payables', 'dash.cp.subtitle':'By counterparty',
         'dash.cp.counterparty':'Counterparty', 'dash.cp.payable':'Payables', 'dash.cp.receivable':'Receivables',
@@ -905,7 +944,7 @@
         'dash.cf.op':'Операційна діяльність', 'dash.cf.inv':'Інвестиційна діяльність', 'dash.cf.fin':'Фінансова діяльність',
         'dash.cf.net':'Чистий грошовий потік', 'dash.cf.none':'Немає руху коштів за період.',
         'tbl.f.type':'Тип', 'tbl.f.cat':'Категорія', 'tbl.f.cur':'Валюта', 'tbl.f.all':'Усі',
-        'tbl.f.clear':'Скинути фільтри',
+        'tbl.f.clear':'Скинути фільтри', 'tbl.f.toggle':'Фільтри',
         'tbl.total':'Усього', 'tbl.noresults':'Немає транзакцій за цими фільтрами.',
         'dash.cp.title':'Дебіторка / Кредиторка', 'dash.cp.subtitle':'За контрагентами',
         'dash.cp.counterparty':'Контрагент', 'dash.cp.payable':'Кредиторка', 'dash.cp.receivable':'Дебіторка',
@@ -1035,9 +1074,16 @@
       const ph = `<option value="" disabled selected>${esc(t('ph.select'))}</option>`;
       sel.innerHTML = ph + items.map(o => `<option value="${esc(o.id)}">${esc(Lycee.pickName(o, lang))}</option>`).join('');
     }
+    // Comparator: order two reference objects by their name in the CURRENT language
+    // (locale-aware, so Cyrillic/Latin sort correctly). Used for the counterparty dropdown
+    // and the counterparty filter; re-applies on language switch.
+    function byLocaleName(a, b){
+      return Lycee.pickName(a, lang).localeCompare(Lycee.pickName(b, lang), locale(), { sensitivity:'base' });
+    }
+    function cpsSorted(){ return CPS.slice().sort(byLocaleName); }
     function refillSelects(){
       if (!typeSel) return;
-      fillSelect(typeSel, TYPES); fillSelect(catSel, CATS); fillSelect(cpSel, CPS);
+      fillSelect(typeSel, TYPES); fillSelect(catSel, CATS); fillSelect(cpSel, cpsSorted());
       if (window.LyceeUI) LyceeUI.refreshAll();  // reflect new options in custom selects
     }
     async function loadOptions(){
@@ -1102,7 +1148,7 @@
 
     /* ---------------- Transactions filters + sum row ---------------- */
     // Filter state for the Transactions table (empty string = no filter on that field).
-    const tableFilter = { type:'', cat:'', cur:'', from:'', to:'' };
+    const tableFilter = { type:'', cat:'', cp:'', cur:'', from:'', to:'' };
 
     // Distinct {id,name_en,name_uk} reference objects present in TX for a given key.
     function distinctRef(key){
@@ -1124,12 +1170,15 @@
     }
     // Repopulate every filter control from the current TX set + reflect the filter state.
     function syncTableFilters(){
-      const fType = document.getElementById('fType'), fCat = document.getElementById('fCat'), fCur = document.getElementById('fCur');
+      const fType = document.getElementById('fType'), fCat = document.getElementById('fCat'),
+            fCp = document.getElementById('fCp'), fCur = document.getElementById('fCur');
       fillFilterSelect(fType, distinctRef('type').map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.type);
       fillFilterSelect(fCat,  distinctRef('category').map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.cat);
+      // Counterparties sorted by their name in the current language (matches the add form).
+      fillFilterSelect(fCp,   distinctRef('counterparty').sort(byLocaleName).map(o => ({ value:o.id, label:Lycee.pickName(o, lang) })), tableFilter.cp);
       fillFilterSelect(fCur,  distinctCurrencies().map(c => ({ value:c, label:c })), tableFilter.cur);
       // A previously-selected option may have vanished (e.g. its last tx was deleted).
-      tableFilter.type = fType.value; tableFilter.cat = fCat.value; tableFilter.cur = fCur.value;
+      tableFilter.type = fType.value; tableFilter.cat = fCat.value; tableFilter.cp = fCp.value; tableFilter.cur = fCur.value;
       const fFrom = document.getElementById('fFrom'), fTo = document.getElementById('fTo');
       fFrom.value = tableFilter.from; fTo.value = tableFilter.to;
       fFrom.closest('.date-field').classList.toggle('has-value', !!fFrom.value);
@@ -1141,6 +1190,7 @@
       return TX.filter(tx => {
         if (tableFilter.type && String(tx.type && tx.type.id) !== tableFilter.type) return false;
         if (tableFilter.cat && String(tx.category && tx.category.id) !== tableFilter.cat) return false;
+        if (tableFilter.cp && String(tx.counterparty && tx.counterparty.id) !== tableFilter.cp) return false;
         if (tableFilter.cur && tx.currency !== tableFilter.cur) return false;
         const iso = String(tx.occured_at || tx.date || '').slice(0,10);
         if (tableFilter.from && !(iso && iso >= tableFilter.from)) return false;
@@ -1191,9 +1241,11 @@
 
       syncTableFilters();
       const rows = filterTX();
-      // Surface the "clear filters" button only while at least one filter is active.
-      document.getElementById('clearFiltersBtn').hidden =
-        !(tableFilter.type || tableFilter.cat || tableFilter.cur || tableFilter.from || tableFilter.to);
+      // Reflect active-filter state on the clear button + the mobile toggle's count badge.
+      const activeCount = ['type','cat','cp','cur','from','to'].filter(k => tableFilter[k]).length;
+      document.getElementById('clearFiltersBtn').hidden = !activeCount;
+      const fc = document.getElementById('filtersCount');
+      fc.textContent = activeCount; fc.hidden = !activeCount;
 
       // Filters matched nothing (but transactions do exist) → inline notice + empty sum.
       if (!rows.length){
@@ -1256,9 +1308,9 @@
     }
 
     // Filter controls → update state + re-render. Selects (custom widget dispatches 'change').
-    ['fType','fCat','fCur'].forEach((id, i) => {
+    ['fType','fCat','fCp','fCur'].forEach((id, i) => {
       const el = document.getElementById(id); if (!el) return;
-      const key = ['type','cat','cur'][i];
+      const key = ['type','cat','cp','cur'][i];
       el.addEventListener('change', () => { tableFilter[key] = el.value; renderTable(); });
     });
     (function(){
@@ -1278,9 +1330,18 @@
     (function(){
       const btn = document.getElementById('clearFiltersBtn'); if (!btn) return;
       btn.addEventListener('click', () => {
-        tableFilter.type = ''; tableFilter.cat = ''; tableFilter.cur = '';
+        tableFilter.type = ''; tableFilter.cat = ''; tableFilter.cp = ''; tableFilter.cur = '';
         tableFilter.from = ''; tableFilter.to = '';
         renderTable();
+      });
+    })();
+    // Mobile: expand/collapse the filter panel (no-op visual on desktop, where it's always open).
+    (function(){
+      const tog = document.getElementById('filtersToggle'); if (!tog) return;
+      tog.addEventListener('click', () => {
+        const open = document.getElementById('content').classList.toggle('filters-open');
+        tog.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open && window.LyceeUI) LyceeUI.refreshAll();  // re-sync custom selects now shown
       });
     })();
 
