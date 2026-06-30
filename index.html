@@ -345,12 +345,14 @@
     .sum-amt{ font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; }
     .sum-amt.pos{ color:#4ade80; } .sum-amt.neg{ color:#f87171; }
     .tx-noresults{ padding:1.75rem 0.5rem; text-align:center; color:var(--hint); font-size:0.875rem; }
-    /* Mobile sum card (the desktop tfoot row is hidden with the table). */
+    /* Mobile total — a flush summary footer under the list (desktop uses the table tfoot).
+       Top border separates it from the last card, mirroring the desktop footer row. */
     .tx-sum{ display:none; }
     @media (max-width:680px){
-      .tx-sum{ display:flex; align-items:center; justify-content:space-between; gap:0.625rem; flex-wrap:wrap;
-        background:var(--card_bg); border:0.0625rem solid var(--border); border-radius:0.875rem;
-        padding:0.75rem 0.875rem; margin-bottom:0.75rem; }
+      .tx-sum{
+        display:flex; align-items:center; justify-content:space-between; gap:0.375rem 0.875rem; flex-wrap:wrap;
+        margin-top:0.875rem; padding-top:0.875rem; border-top:0.125rem solid var(--border);
+      }
     }
     .btn-ghost-clear{
       width:100%; margin:0; padding:0.8125rem; background:transparent;
@@ -699,8 +701,6 @@
                 </div>
               </div>
             </div>
-            <!-- Sum summary (mobile) -->
-            <div id="txSum" class="tx-sum"></div>
             <!-- Card list (mobile) -->
             <div id="txCards" class="tx-cards"></div>
             <!-- Table (desktop) -->
@@ -722,6 +722,8 @@
                 <tfoot id="rowsFoot"></tfoot>
               </table>
             </div>
+            <!-- Sum summary (mobile) — sits below the list, mirroring the desktop table footer -->
+            <div id="txSum" class="tx-sum"></div>
 
             <div class="footer-actions">
               <button class="btn-ghost-clear" id="clearBtn" type="button">
