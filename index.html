@@ -1666,17 +1666,12 @@
       const sym = CUR_SYMBOL[cur] || cur || '';
       return (v < 0 ? '-' : '') + euNum(Math.abs(v), 2) + (sym ? ' ' + sym : '');
     }
-    // Compact money for chart axis ticks (labels must stay short): abbreviated K/M with a
-    // European decimal comma. Full numbers would overlap/clip on a crowded axis.
+    // Money for chart axis ticks — full number, no K/M abbreviation.
     function dashTick(v){
       const cur = dashState.currency || 'UAH';
       const sym = CUR_SYMBOL[cur] || cur || '';
       const sign = v < 0 ? '-' : '';
-      const a = Math.abs(v);
-      const suf = sym ? ' ' + sym : '';
-      if (a >= 1e6) return sign + euNum(a/1e6, 1) + 'M' + suf;
-      if (a >= 1e3) return sign + euNum(a/1e3, 1) + 'K' + suf;
-      return sign + euNum(a, 0) + suf;
+      return sign + euNum(Math.abs(v), 0) + (sym ? ' ' + sym : '');
     }
 
     // Transaction type as a lowercased "UK EN" string for keyword matching.
