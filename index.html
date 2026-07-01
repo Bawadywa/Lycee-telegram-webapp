@@ -1257,7 +1257,7 @@
     }
     function sumChip(v, cur){
       const sign = v < 0 ? '−' : '+';
-      return `<span class="sum-amt ${v < 0 ? 'neg' : 'pos'}">${sign}${esc(curSym(cur))}${esc(fmtNum(Math.abs(v)))}</span>`;
+      return `<span class="sum-amt ${v < 0 ? 'neg' : 'pos'}">${sign}${esc(fmtNum(Math.abs(v)))} ${esc(curSym(cur))}</span>`;
     }
     // Combined total of the filtered rows — all transactions of all currencies converted and
     // summed (like the dashboard), shown in each display currency → desktop tfoot + mobile card.
@@ -1345,7 +1345,7 @@
         <div class="tx-card ${dir}" data-id="${escapeHtml(tx.id)}">
           <div class="txc-top">
             <span class="txc-cp">${cp}</span>
-            <span class="txc-amt ${dir}">${sign}${escapeHtml(curSym(tx.currency))}${fmtNum(tx.total)}</span>
+            <span class="txc-amt ${dir}">${sign}${fmtNum(tx.total)} ${escapeHtml(curSym(tx.currency))}</span>
           </div>
           <div class="txc-row2">
             <span class="txc-date">${date}</span>
@@ -1572,7 +1572,7 @@
       const draftUah = Math.abs(convertAmount(total, currency || 'UAH', 'UAH'));
       const over = (settled + draftUah) - accrued;
       if (over > 0.005){
-        warnEl.textContent = '⚠ ' + t('warn.payable') + ' ' + CUR_SYMBOL.UAH + fmtNum(over);
+        warnEl.textContent = '⚠ ' + t('warn.payable') + ' ' + fmtNum(over) + ' ' + CUR_SYMBOL.UAH;
         warnEl.hidden = false;
       }
     }
@@ -1663,19 +1663,20 @@
     // KPIs, tables and tooltips — everything except chart axis ticks (see dashTick).
     function dashMoney(v){
       const cur = dashState.currency || 'UAH';
-      const sym = CUR_SYMBOL[cur] || (cur ? cur + ' ' : '');
-      return (v < 0 ? '-' : '') + sym + euNum(Math.abs(v), 2);
+      const sym = CUR_SYMBOL[cur] || cur || '';
+      return (v < 0 ? '-' : '') + euNum(Math.abs(v), 2) + (sym ? ' ' + sym : '');
     }
     // Compact money for chart axis ticks (labels must stay short): abbreviated K/M with a
     // European decimal comma. Full numbers would overlap/clip on a crowded axis.
     function dashTick(v){
       const cur = dashState.currency || 'UAH';
-      const sym = CUR_SYMBOL[cur] || (cur ? cur + ' ' : '');
+      const sym = CUR_SYMBOL[cur] || cur || '';
       const sign = v < 0 ? '-' : '';
       const a = Math.abs(v);
-      if (a >= 1e6) return sign + sym + euNum(a/1e6, 1) + 'M';
-      if (a >= 1e3) return sign + sym + euNum(a/1e3, 1) + 'K';
-      return sign + sym + euNum(a, 0);
+      const suf = sym ? ' ' + sym : '';
+      if (a >= 1e6) return sign + euNum(a/1e6, 1) + 'M' + suf;
+      if (a >= 1e3) return sign + euNum(a/1e3, 1) + 'K' + suf;
+      return sign + euNum(a, 0) + suf;
     }
 
     // Transaction type as a lowercased "UK EN" string for keyword matching.
