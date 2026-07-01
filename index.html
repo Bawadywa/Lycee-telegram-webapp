@@ -1659,12 +1659,20 @@
     const dashState = { currency:null, from:'', to:'', cats:null }; // from/to = '' (open); cats:null = all
     let dashCharts = {};
 
-    // Money in the selected dashboard currency, full European format ("₴10.000,00"). Used by
-    // KPIs, tables and tooltips — everything except chart axis ticks (see dashTick).
-    function dashMoney(v){
+    // Money in the selected dashboard currency. `full=true` → exact European format
+    // ("10.000,00 ₴"), used by tooltips where there's room. `full` omitted/false → compact
+    // K/M abbreviation ("209,8K ₴"), used by KPI cards and P&L table cells so values fit on
+    // one line. Chart axis ticks use dashTick.
+    function dashMoney(v, full){
       const cur = dashState.currency || 'UAH';
       const sym = CUR_SYMBOL[cur] || cur || '';
-      return (v < 0 ? '-' : '') + euNum(Math.abs(v), 2) + (sym ? ' ' + sym : '');
+      const suf = sym ? ' ' + sym : '';
+      const sign = v < 0 ? '-' : '';
+      const a = Math.abs(v);
+      if (full) return sign + euNum(a, 2) + suf;
+      if (a >= 1e6) return sign + euNum(a / 1e6, 1) + 'M' + suf;
+      if (a >= 1e3) return sign + euNum(a / 1e3, 1) + 'K' + suf;
+      return sign + euNum(a, 0) + suf;
     }
     // Money for chart axis ticks — full number, no K/M abbreviation.
     function dashTick(v){
