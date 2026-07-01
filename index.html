@@ -8,7 +8,7 @@
   <script src="./config.js?v=22"></script>
   <script src="./api.js?v=22"></script>
   <script src="./chart.umd.min.js?v=22"></script>
-  <script src="./ui.js?v=23"></script>
+  <script src="./ui.js?v=24"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -419,7 +419,7 @@
     .dash-card h3{ font-size:0.9375rem; font-weight:800; }
     .dash-card .sub{ margin:0.125rem 0 0.75rem; font-size:0.75rem; color:var(--hint); }
     .dash-card .canvas-host{ position:relative; width:100%; min-width:0; height:15rem; }
-    .dash-card.donut .canvas-host{ height:17.5rem; }
+    .dash-card.donut .canvas-host, .dash-card.tall .canvas-host{ height:17.5rem; }
     .dash-card .canvas-host canvas{ display:block; max-width:100%; }
 
     /* ---------- Data tables (P&L statement + counterparty balances) ---------- */
@@ -805,6 +805,11 @@
               <p class="sub" data-i18n="dash.c.exp.sub">By category</p>
               <div class="canvas-host"><canvas id="cExp"></canvas></div>
             </div>
+            <div class="card dash-card tall">
+              <h3 data-i18n="dash.c.topcp">Top counterparties by expense</h3>
+              <p class="sub" data-i18n="dash.c.topcp.sub">Highest spend</p>
+              <div class="canvas-host"><canvas id="cTopCp"></canvas></div>
+            </div>
           </div>
 
           <!-- P&L statement (point 7) — monthly pivot, ref image.png -->
@@ -896,6 +901,7 @@
         'dash.c.net':'Net profit', 'dash.c.net.sub':'Monthly dynamics',
         'dash.c.cash':'Cash balance', 'dash.c.cash.sub':'Cumulative',
         'dash.c.exp':'Expense structure', 'dash.c.exp.sub':'By category',
+        'dash.c.topcp':'Top counterparties by expense', 'dash.c.topcp.sub':'Highest spend',
         'dash.pnl.rev':'Revenue', 'dash.pnl.cost':'Costs', 'dash.pnl.net':'Net profit', 'dash.pnl.margin':'Margin',
         'dash.pnl.title':'P&L statement', 'dash.pnl.subtitle':'By month',
         'dash.pnl.profit':'Profit', 'dash.pnl.income':'Income', 'dash.pnl.expenses':'Expenses', 'dash.pnl.total':'Total',
@@ -903,7 +909,7 @@
         'dash.pnl.none':'No income or expense data in range.',
         'dash.cf.title':'Cash flow statement', 'dash.cf.subtitle':'By month · direct method',
         'dash.cf.op':'Operating activities', 'dash.cf.inv':'Investing activities', 'dash.cf.fin':'Financing activities',
-        'dash.cf.net':'Net cash flow', 'dash.cf.none':'No cash movements in range.',
+        'dash.cf.net':'Net cash flow', 'dash.cf.cum':'Cumulative cash flow', 'dash.cf.none':'No cash movements in range.',
         'tbl.f.type':'Type', 'tbl.f.cat':'Category', 'tbl.f.cur':'Currency', 'tbl.f.all':'All',
         'tbl.f.clear':'Clear filters', 'tbl.f.toggle':'Filters',
         'tbl.total':'Total', 'tbl.noresults':'No transactions match these filters.',
@@ -953,6 +959,7 @@
         'dash.c.net':'Чистий прибуток', 'dash.c.net.sub':'Динаміка по місяцях',
         'dash.c.cash':'Залишок коштів', 'dash.c.cash.sub':'Накопичувально',
         'dash.c.exp':'Структура витрат', 'dash.c.exp.sub':'За категоріями',
+        'dash.c.topcp':'Топ контрагентів за витратами', 'dash.c.topcp.sub':'Найбільші витрати',
         'dash.pnl.rev':'Доходи', 'dash.pnl.cost':'Витрати', 'dash.pnl.net':'Прибуток', 'dash.pnl.margin':'Маржа',
         'dash.pnl.title':'Звіт про прибутки та збитки', 'dash.pnl.subtitle':'По місяцях',
         'dash.pnl.profit':'Прибуток', 'dash.pnl.income':'Доходи', 'dash.pnl.expenses':'Витрати', 'dash.pnl.total':'Усього',
@@ -960,7 +967,7 @@
         'dash.pnl.none':'Немає доходів чи витрат за період.',
         'dash.cf.title':'Звіт про рух грошових коштів', 'dash.cf.subtitle':'По місяцях · прямий метод',
         'dash.cf.op':'Операційна діяльність', 'dash.cf.inv':'Інвестиційна діяльність', 'dash.cf.fin':'Фінансова діяльність',
-        'dash.cf.net':'Чистий грошовий потік', 'dash.cf.none':'Немає руху коштів за період.',
+        'dash.cf.net':'Чистий грошовий потік', 'dash.cf.cum':'Наростаючим підсумком', 'dash.cf.none':'Немає руху коштів за період.',
         'tbl.f.type':'Тип', 'tbl.f.cat':'Категорія', 'tbl.f.cur':'Валюта', 'tbl.f.all':'Усі',
         'tbl.f.clear':'Скинути фільтри', 'tbl.f.toggle':'Фільтри',
         'tbl.total':'Усього', 'tbl.noresults':'Немає транзакцій за цими фільтрами.',
@@ -1057,10 +1064,14 @@
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
     }
-    function fmtNum(n){
-      try { return new Intl.NumberFormat(locale(), { minimumFractionDigits:2, maximumFractionDigits:2 }).format(n); }
-      catch(e){ return Number(n).toFixed(2); }
+    // European number format everywhere: '.' groups thousands, ',' is the decimal mark
+    // (10000 -> "10.000,00"). Fixed 'de-DE' locale so the style is identical in EN and UK.
+    function euNum(n, dec){
+      const d = dec == null ? 2 : dec;
+      try { return new Intl.NumberFormat('de-DE', { minimumFractionDigits:d, maximumFractionDigits:d }).format(Number(n) || 0); }
+      catch(e){ return (Number(n) || 0).toFixed(d).replace('.', ','); }
     }
+    function fmtNum(n){ return euNum(n, 2); }
     function fmtDate(iso){
       const d = new Date(iso + 'T00:00:00');
       if (isNaN(d)) return iso;
@@ -1253,7 +1264,7 @@
     const SUM_CURRENCIES = ['UAH', 'USD', 'EUR'];
     function renderTxSum(rows){
       const foot = document.getElementById('rowsFoot'), sumEl = document.getElementById('txSum');
-      const totals = SUM_CURRENCIES.map(cur => rows.reduce((s, tx) => s + txSignedIn(tx, cur), 0));
+      const totals = SUM_CURRENCIES.map(cur => rows.reduce((s, tx) => isPayableAccruedNonLoan(tx) ? s : s + txSignedIn(tx, cur), 0));
       const chips = rows.length
         ? SUM_CURRENCIES.map((cur, i) => sumChip(totals[i], cur)).join('')
         : `<span class="sum-amt muted">—</span>`;
@@ -1648,20 +1659,23 @@
     const dashState = { currency:null, from:'', to:'', cats:null }; // from/to = '' (open); cats:null = all
     let dashCharts = {};
 
-    // Money formatter respecting the active currency + locale. `full`=exact (tooltips/KPIs),
-    // otherwise compact (axes). All amounts are shown in the selected dashboard currency.
-    function dashMoney(v, full){
+    // Money in the selected dashboard currency, full European format ("₴10.000,00"). Used by
+    // KPIs, tables and tooltips — everything except chart axis ticks (see dashTick).
+    function dashMoney(v){
+      const cur = dashState.currency || 'UAH';
+      const sym = CUR_SYMBOL[cur] || (cur ? cur + ' ' : '');
+      return (v < 0 ? '-' : '') + sym + euNum(Math.abs(v), 2);
+    }
+    // Compact money for chart axis ticks (labels must stay short): abbreviated K/M with a
+    // European decimal comma. Full numbers would overlap/clip on a crowded axis.
+    function dashTick(v){
       const cur = dashState.currency || 'UAH';
       const sym = CUR_SYMBOL[cur] || (cur ? cur + ' ' : '');
       const sign = v < 0 ? '-' : '';
       const a = Math.abs(v);
-      if (!full){
-        if (a >= 1e6) return sign + sym + (a/1e6).toFixed(2) + 'M';
-        if (a >= 1e3) return sign + sym + (a/1e3).toFixed(1) + 'K';
-        return sign + sym + Math.round(a);
-      }
-      try { return sign + sym + new Intl.NumberFormat(locale(), { maximumFractionDigits:2 }).format(a); }
-      catch(e){ return sign + sym + a.toFixed(2); }
+      if (a >= 1e6) return sign + sym + euNum(a/1e6, 1) + 'M';
+      if (a >= 1e3) return sign + sym + euNum(a/1e3, 1) + 'K';
+      return sign + sym + euNum(a, 0);
     }
 
     // Transaction type as a lowercased "UK EN" string for keyword matching.
@@ -1725,6 +1739,13 @@
     function isLoanDrawdown(tx){
       const s = typeStr(tx);
       return /нарахован|accru/.test(s) && /кредитор|payable/.test(s) && catIsLoanPrincipal(tx);
+    }
+    // Payable accrued (Кредиторка нарахована) in a NON-loan category: goods/services taken on
+    // credit — a cost booked with no cash movement yet. Excluded from the transactions total
+    // (only the later settlement leg, when actually paid, moves cash and hits the total).
+    function isPayableAccruedNonLoan(tx){
+      const s = typeStr(tx);
+      return /нарахован|accru/.test(s) && /кредитор|payable/.test(s) && !catIsLoanPrincipal(tx);
     }
     // Receivable accrued in the goods category is treated as a balance-sheet movement, not
     // revenue, so it's excluded from the P&L (it still counts in the receivables balance).
@@ -1825,7 +1846,7 @@
       const months = Object.keys(monthsObj).sort();
       const inc = {}, exp = {}, cashNet = {};
       months.forEach(k => { inc[k] = 0; exp[k] = 0; cashNet[k] = 0; });
-      const expCat = {}; let totIn = 0, totOut = 0;
+      const expCat = {}; const expCp = {}; let totIn = 0, totOut = 0;
       // Balance-sheet style KPIs (point 2): receivables / payables are the net of their
       // accrued vs. settled legs; investments / dividends are summed by category.
       let recvAccr = 0, recvSettled = 0, payAccr = 0, paySettled = 0, invest = 0, dividend = 0;
@@ -1851,7 +1872,7 @@
         const isInv = catIsInvestment(tx), isDiv = catIsDividend(tx), isLoan = catIsLoanPrincipal(tx);
         const pnlExcl = isInv || isDiv || isLoan || isGoodsReceivableAccrued(tx);
         if (pl === 'income' && !pnlExcl){ inc[k] += amt; totIn += amt; }
-        else if (pl === 'expense' && !pnlExcl){ exp[k] += amt; totOut += amt; expCat[c] = (expCat[c]||0) + amt; }
+        else if (pl === 'expense' && !pnlExcl){ exp[k] += amt; totOut += amt; expCat[c] = (expCat[c]||0) + amt; expCp[cpName(tx)] = (expCp[cpName(tx)]||0) + amt; }
         // Cash-balance chart: every realised cash movement (incl. loans, dividends…).
         const cd = txCash(tx);
         if (cd === 'in') cashNet[k] += amt; else if (cd === 'out') cashNet[k] -= amt;
@@ -1896,7 +1917,7 @@
         .sort((a,b) => (Math.abs(b.payable)+Math.abs(b.receivable)) - (Math.abs(a.payable)+Math.abs(a.receivable)));
       const pnlRev = months.reduce((s,k) => s + (pnlIncTot[k]||0), 0);
       const pnlCost = months.reduce((s,k) => s + (pnlExpTot[k]||0), 0);
-      return { months, labels: months.map(monthLabel), inc: incA, exp: expA, net, cash, totIn, totOut, expCat,
+      return { months, labels: months.map(monthLabel), inc: incA, exp: expA, net, cash, totIn, totOut, expCat, expCp,
         receivable: recvAccr - recvSettled, payable: payAccr - paySettled, invest, dividend, count: rows.length,
         pnlInc, pnlExp, pnlIncTot, pnlExpTot, pnlDivTot, pnlRev, pnlCost, cpRows,
         cfOp, cfInv, cfFin, cfOpTot, cfInvTot, cfFinTot };
@@ -1919,7 +1940,7 @@
         },
         scales:{
           x:{ grid:{ display:false }, ticks:{ color:'#a1a1aa', font:{ size:11 } } },
-          y:{ grid:{ color:'rgba(255,255,255,.07)' }, ticks:{ color:'#a1a1aa', font:{ size:11 }, callback:v => dashMoney(v, false) } }
+          y:{ grid:{ color:'rgba(255,255,255,.07)' }, ticks:{ color:'#a1a1aa', font:{ size:11 }, callback:v => dashTick(v) } }
         }
       };
     }
@@ -1945,6 +1966,26 @@
       if (!e.length) return { labels:[t('dash.none')], data:[1], colors:['rgba(255,255,255,.10)'] };
       return { labels:e.map(x=>x[0]), data:e.map(x=>x[1]), colors:e.map((x,i)=>DASH_PALETTE[i%DASH_PALETTE.length]) };
     }
+    // Horizontal bar-list from a {name: amount} map — top N counterparties, biggest first.
+    function topCpData(map, n){
+      const e = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0, n || 6);
+      if (!e.length) return { labels:[t('dash.none')], data:[0], colors:['rgba(255,255,255,.10)'] };
+      return { labels:e.map(x=>x[0]), data:e.map(x=>x[1]), colors:e.map((x,i)=>DASH_PALETTE[i%DASH_PALETTE.length]) };
+    }
+    function dashBarListOpts(){
+      return {
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{ display:false },
+          tooltip: dashTooltip({ callbacks:{ title:c => c[0] && c[0].label, label:c => ' ' + dashMoney(c.parsed.x, true) } })
+        },
+        scales:{
+          x:{ grid:{ color:'rgba(255,255,255,.07)' }, ticks:{ color:'#a1a1aa', font:{ size:11 }, callback:v => dashTick(v) } },
+          y:{ grid:{ display:false }, ticks:{ color:'#cbd5e1', font:{ size:11 },
+            callback:function(v){ const l = this.getLabelForValue(v); return l.length > 16 ? l.slice(0,15) + '…' : l; } } }
+        }
+      };
+    }
     // P&L waterfall: revenue rises from 0, costs step it down (a floating bar), net is the
     // remainder. `mags` holds each bar's magnitude for the tooltip (the bars are ranges).
     function pnlData(a){
@@ -1965,7 +2006,7 @@
         },
         scales:{
           x:{ grid:{ display:false }, ticks:{ color:'#a1a1aa', font:{ size:11 } } },
-          y:{ grid:{ color:'rgba(255,255,255,.07)' }, ticks:{ color:'#a1a1aa', font:{ size:11 }, callback:v => dashMoney(v, false) } }
+          y:{ grid:{ color:'rgba(255,255,255,.07)' }, ticks:{ color:'#a1a1aa', font:{ size:11 }, callback:v => dashTick(v) } }
         }
       };
     }
@@ -2001,6 +2042,12 @@
         data:{ labels:de.labels, datasets:[{ data:de.data, backgroundColor:de.colors, borderColor:'#0f0f10', borderWidth:2, hoverOffset:6 }] },
         options: dashDonutOpts()
       });
+      const tc = topCpData(a.expCp);
+      dashCharts.topcp = new Chart(document.getElementById('cTopCp'), {
+        type:'bar',
+        data:{ labels:tc.labels, datasets:[{ data:tc.data, backgroundColor:tc.colors, borderRadius:5, maxBarThickness:26 }] },
+        options: dashBarListOpts()
+      });
     }
 
     // Feed new data into the existing charts and let Chart.js animate the transition —
@@ -2022,6 +2069,10 @@
       const de = donutData(a.expCat);
       const ce = dashCharts.exp;
       ce.data.labels = de.labels; ce.data.datasets[0].data = de.data; ce.data.datasets[0].backgroundColor = de.colors; ce.update();
+
+      const tc = topCpData(a.expCp);
+      const ct = dashCharts.topcp;
+      ct.data.labels = tc.labels; ct.data.datasets[0].data = tc.data; ct.data.datasets[0].backgroundColor = tc.colors; ct.update();
     }
 
     function destroyCharts(){
@@ -2120,6 +2171,11 @@
       const netM = months.map(m => (a.cfOpTot[m] || 0) + (a.cfInvTot[m] || 0) + (a.cfFinTot[m] || 0));
       const netT = netM.reduce((s,v) => s + v, 0);
       body += `<tr class="r-total r-net"><td class="rowlabel">${esc(t('dash.cf.net'))}</td>${netM.map(flowCell).join('')}${flowCell(netT)}</tr>`;
+      // Cumulative (running) cash flow — each month carries forward the prior months' net,
+      // so a column reads as the closing cash position at the end of that month. The Total
+      // column shows the final running balance (equal to the sum of all monthly net flows).
+      let cfRun = 0; const cumM = netM.map(v => (cfRun += v));
+      body += `<tr class="r-total"><td class="rowlabel">${esc(t('dash.cf.cum'))}</td>${cumM.map(flowCell).join('')}${flowCell(netT)}</tr>`;
       tbl.innerHTML = head + '<tbody>' + body + '</tbody>';
     }
     // Receivables / payables per counterparty (net open balance), biggest first, with a total row.
